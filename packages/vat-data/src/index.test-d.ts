@@ -1,5 +1,5 @@
 /* eslint-disable no-use-before-define */
-import { expectType } from 'tsd';
+import { expectNotType, expectType } from 'tsd';
 import type {
   KindFacets,
   DurableKindHandle,
@@ -7,6 +7,7 @@ import type {
   FunctionsPlusContext,
 } from '@agoric/swingset-liveslots';
 import { VirtualObjectManager } from '@agoric/swingset-liveslots/src/virtualObjectManager.js';
+import { TypedMatcher } from '@agoric/internal/src/types.js';
 import {
   defineKind,
   defineKindMulti,
@@ -14,7 +15,10 @@ import {
   defineDurableKind,
   partialAssign,
   watchPromise,
+  prepareExo,
+  M,
 } from '.';
+import { GuardedMethod, GuardedMethods, TypedMethodGuard } from './types.js';
 
 // for use in assignments below
 const anyVal = null as any;
@@ -188,3 +192,37 @@ watchPromise(
   'extraString',
   'alsoString',
 );
+const Mnumber = M.number() as TypedMatcher<number>;
+
+{
+  const numIdentityGuard = M.call(Mnumber).returns(Mnumber) as TypedMethodGuard<
+    (n: number) => number
+  >;
+  const numIdentity: GuardedMethod<typeof numIdentityGuard> = x => x;
+  expectType<number>(numIdentity(3));
+}
+
+{
+  const baggage = null as any;
+  const UpCounterI = M.interface('UpCounter', {
+    // TODO infer the TypedMethodGuard signature from the fluent builder
+    adjustBy: M.call(Mnumber).returns(Mnumber) as TypedMethodGuard<
+      (y: number) => number
+    >,
+  });
+  const exo = prepareExo(baggage, 'upCounter', UpCounterI, {
+    adjustBy(y) {
+      expectType<number>(y);
+      expectNotType<any>(y);
+      return y;
+    },
+  });
+  expectType<(y: number) => number>(exo.adjustBy);
+
+  prepareExo(baggage, 'upCounter', UpCounterI, {
+    // @ts-expect-error invalid return type
+    adjustBy(y) {
+      return 'hi';
+    },
+  });
+}

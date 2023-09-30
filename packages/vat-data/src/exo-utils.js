@@ -7,6 +7,12 @@ import { provide, VatData as globalVatData } from './vat-data-bindings.js';
 /**
  * @import {InterfaceGuard} from '@endo/patterns'
  * @import {Baggage, DefineKindOptions, DurableKindHandle, InterfaceGuardKit} from '@agoric/swingset-liveslots'
+ * @import {MethodGuard} from '@endo/patterns'
+ * @import {GuardedMethods} from './types.js'
+ * @import {RemotableBrand} from '@endo/eventual-send'
+ * @import {ERef} from '@endo/far'
+ * @import {KindFacet} from '@agoric/swingset-liveslots'
+ * @import {KindFacets} from '@agoric/swingset-liveslots'
  */
 
 /**
@@ -267,13 +273,13 @@ export const makeExoUtils = VatData => {
   harden(prepareExoClassKit);
 
   /**
-   * @template {Record<PropertyKey, CallableFunction>} M methods
+   * @template {InterfaceGuard} I
    * @param {Baggage} baggage
    * @param {string} kindName
-   * @param {InterfaceGuard | undefined} interfaceGuard
-   * @param {M} methods
-   * @param {DefineKindOptions<{ self: M }>} [options]
-   * @returns {import('@endo/exo').Guarded<M>}
+   * @param {I | undefined} interfaceGuard
+   * @param {GuardedMethods<I>} methods
+   * @param {DefineKindOptions<{ self: GuardedMethods<I> }>} [options]
+   * @returns {GuardedMethods<I> & RemotableBrand<{}, GuardedMethods<I>>}
    */
   const prepareExo = (
     baggage,
@@ -305,6 +311,7 @@ export const makeExoUtils = VatData => {
    * @returns {import('@endo/exo').Guarded<M>}
    */
   const prepareSingleton = (baggage, kindName, methods, options = undefined) =>
+    // @ts-expect-error types puzzle, ignore b/c deprecated
     prepareExo(baggage, kindName, undefined, methods, options);
   harden(prepareSingleton);
 
