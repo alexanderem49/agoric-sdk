@@ -890,6 +890,13 @@ func unreleasedUpgradeHandler(app *GaiaApp, targetUpgrade string) func(sdk.Conte
 				"@agoric/builders/scripts/vats/init-network.js",
 				"@agoric/builders/scripts/vats/init-localchain.js",
 			),
+			// update PriceFeeds
+			vm.CoreProposalStepForModules(
+				"@agoric/builders/scripts/vats/updateAtomPriceFeed.js",
+				"@agoric/builders/scripts/vats/updateStAtomPriceFeed.js",
+				"@agoric/builders/scripts/vats/updateStOsmoPriceFeed.js",
+				"@agoric/builders/scripts/vats/updateStTiaPriceFeed.js",
+			),
 		}
 
 		app.upgradeDetails = &upgradeDetails{
