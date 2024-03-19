@@ -2,7 +2,7 @@ import { makeHelpers } from '@agoric/deploy-script-support';
 import { priceFeedProposalBuilder } from './updatePriceFeeds.js';
 
 const OPTIONS = {
-  AGORIC_INSTANCE_NAME: 'stAtom-USD price feed',
+  AGORIC_INSTANCE_NAME: 'stATOM-USD price feed',
   IN_BRAND_LOOKUP: ['agoricNames', 'oracleBrand', 'stAtom'],
   OUT_BRAND_LOOKUP: ['agoricNames', 'oracleBrand', 'USD'],
 };

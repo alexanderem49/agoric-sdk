@@ -8,11 +8,7 @@
     },
     "comment": "all the priceFeed submissions go in the same directory",
     "sdk-generate": [
-      "probe-zcf-bundle probe-submission",
-      "updateAtomPriceFeed priceFeed-submission",
-      "updateStTiaPriceFeed priceFeed-submission",
-      "updateStOsmoPriceFeed priceFeed-submission",
-      "updateStAtomPriceFeed priceFeed-submission"
+      "probe-zcf-bundle probe-submission"
     ],
     "type": "Software Upgrade Proposal"
   },

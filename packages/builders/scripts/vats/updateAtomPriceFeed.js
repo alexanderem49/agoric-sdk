@@ -2,8 +2,8 @@ import { makeHelpers } from '@agoric/deploy-script-support';
 import { priceFeedProposalBuilder } from './updatePriceFeeds.js';
 
 const OPTIONS = {
-  AGORIC_INSTANCE_NAME: 'stTIA-USD price feed',
-  IN_BRAND_LOOKUP: ['agoricNames', 'oracleBrand', 'stTIA'],
+  AGORIC_INSTANCE_NAME: 'ATOM-USD price feed',
+  IN_BRAND_LOOKUP: ['agoricNames', 'oracleBrand', 'ATOM'],
   OUT_BRAND_LOOKUP: ['agoricNames', 'oracleBrand', 'USD'],
 };
 
@@ -17,5 +17,5 @@ export const defaultProposalBuilder = async ({ publishRef, install }) => {
 export default async (homeP, endowments) => {
   const { writeCoreProposal } = await makeHelpers(homeP, endowments);
 
-  await writeCoreProposal('stTiaPriceFeed', defaultProposalBuilder);
+  await writeCoreProposal('atomPriceFeed', defaultProposalBuilder);
 };

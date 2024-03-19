@@ -127,7 +127,7 @@ export const createPriceFeed = async (
     },
   },
 ) => {
-  trace('createPriceFeed');
+  trace('createPriceFeed', AGORIC_INSTANCE_NAME);
   const STORAGE_PATH = 'priceFeed';
 
   void E(client).assignBundle([_addr => ({ priceAuthority })]);
@@ -138,6 +138,19 @@ export const createPriceFeed = async (
     const bundleID = await E.get(priceAggregatorRef).bundleID;
     if (bundleID) {
       installationP = E(zoe).installBundleID(bundleID);
+      await E.when(
+        installationP,
+        installation =>
+          E(E(agoricNamesAdmin).lookupAdmin('installation')).update(
+            'priceAggregator',
+            installation,
+          ),
+        err =>
+          console.error(
+            `🚨 failed to update priceAggregator instance for ${AGORIC_INSTANCE_NAME}`,
+            err,
+          ),
+      );
     }
   }
   if (!installationP) {
@@ -208,6 +221,9 @@ export const createPriceFeed = async (
     .catch(err =>
       console.error(`🚨 failed to update ${AGORIC_INSTANCE_NAME}`, err),
     );
+
+  console.log(`PFP updated instance`, AGORIC_INSTANCE_NAME);
+
   // being after the above awaits means that when this resolves, the consumer
   // gets notified that the authority is in the registry and its instance is in
   // agoricNames.

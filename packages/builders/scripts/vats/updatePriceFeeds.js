@@ -44,6 +44,8 @@ export const priceFeedProposalBuilder = async (
         contractTerms: DEFAULT_CONTRACT_TERMS,
         oracleAddresses,
         IN_BRAND_NAME,
+        IN_BRAND_DECIMALS: 6,
+        OUT_BRAND_DECIMALS: 4,
         OUT_BRAND_NAME: 'USD',
         priceAggregatorRef: publishRef(
           install(
