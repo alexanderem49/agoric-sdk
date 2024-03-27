@@ -398,6 +398,7 @@ export async function initializeSwingset(
         managerType: 'local',
         useTranscript: false,
         reapInterval: 'never',
+        reapGCKrefs: 'never',
       },
     };
   }

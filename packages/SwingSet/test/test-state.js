@@ -197,7 +197,10 @@ test('kernel state', async t => {
     ['kd.nextID', '30'],
     ['kp.nextID', '40'],
     ['kernel.defaultManagerType', 'local'],
-    ['kernel.defaultReapInterval', '1'],
+    [
+      'kernel.defaultReapDirtThreshold',
+      JSON.stringify({ deliveries: 1, gcKrefs: 20, computrons: 'never' }),
+    ],
     ['kernel.snapshotInitial', '3'],
     ['kernel.snapshotInterval', '200'],
     ['meter.nextID', '1'],
@@ -233,7 +236,10 @@ test('kernelKeeper vat names', async t => {
     ['vat.name.vatname5', 'v1'],
     ['vat.name.Frank', 'v2'],
     ['kernel.defaultManagerType', 'local'],
-    ['kernel.defaultReapInterval', '1'],
+    [
+      'kernel.defaultReapDirtThreshold',
+      JSON.stringify({ deliveries: 1, gcKrefs: 20, computrons: 'never' }),
+    ],
     ['kernel.snapshotInitial', '3'],
     ['kernel.snapshotInterval', '200'],
     ['meter.nextID', '1'],
@@ -283,7 +289,10 @@ test('kernelKeeper device names', async t => {
     ['device.name.devicename5', 'd7'],
     ['device.name.Frank', 'd8'],
     ['kernel.defaultManagerType', 'local'],
-    ['kernel.defaultReapInterval', '1'],
+    [
+      'kernel.defaultReapDirtThreshold',
+      JSON.stringify({ deliveries: 1, gcKrefs: 20, computrons: 'never' }),
+    ],
     ['kernel.snapshotInitial', '3'],
     ['kernel.snapshotInterval', '200'],
     ['meter.nextID', '1'],
@@ -465,7 +474,10 @@ test('kernelKeeper promises', async t => {
     [`${ko}.owner`, 'v1'],
     [`${ko}.refCount`, '1,1'],
     ['kernel.defaultManagerType', 'local'],
-    ['kernel.defaultReapInterval', '1'],
+    [
+      'kernel.defaultReapDirtThreshold',
+      JSON.stringify({ deliveries: 1, gcKrefs: 20, computrons: 'never' }),
+    ],
     ['kernel.snapshotInitial', '3'],
     ['kernel.snapshotInterval', '200'],
     ['meter.nextID', '1'],
@@ -513,7 +525,7 @@ test('vatKeeper', async t => {
   k.createStartingKernelState({ defaultManagerType: 'local' });
   const v1 = k.allocateVatIDForNameIfNeeded('name1');
   const source = { bundleID: 'foo' };
-  const options = { workerOptions: 'foo', reapInterval: 1 };
+  const options = { workerOptions: 'foo', reapDirtThreshold: {} };
   k.createVatState(v1, source, options);
 
   const vk = k.provideVatKeeper(v1);
@@ -555,7 +567,7 @@ test('vatKeeper.getOptions', async t => {
     'b1-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
   const source = { bundleID };
   const workerOptions = { type: 'local' };
-  const options = { workerOptions, name: 'fred', reapInterval: 1 };
+  const options = { workerOptions, name: 'fred', reapDirtThreshold: {} };
   k.createVatState(v1, source, options);
 
   const vk = k.provideVatKeeper(v1);
@@ -924,4 +936,159 @@ test('stats - can load and save existing stats', t => {
   t.deepEqual(getStats(), { ...consensusStats, ...localStats });
   t.deepEqual(JSON.parse(getSerializedStats().consensusStats), consensusStats);
   t.deepEqual(JSON.parse(getSerializedStats().localStats), localStats);
+});
+
+test('vatKeeper dirt counters', async t => {
+  const store = buildKeeperStorageInMemory();
+  const k = makeKernelKeeper(store, null);
+  k.createStartingKernelState({
+    defaultManagerType: 'local',
+  });
+  k.saveStats();
+
+  // the defaults are designed for testing
+  t.deepEqual(JSON.parse(k.kvStore.get(`kernel.defaultReapDirtThreshold`)), {
+    deliveries: 1,
+    gcKrefs: 20,
+    computrons: 'never',
+  });
+
+  const reapDirtThreshold = { deliveries: 10, gcKrefs: 20, computrons: 100 };
+  const never = { deliveries: 'never', gcKrefs: 'never', computrons: 'never' };
+
+  // a new DB will have empty dirt entries for each vat created
+  const source = { bundleID: 'foo' };
+  const v1 = k.allocateVatIDForNameIfNeeded('name1');
+  k.createVatState(v1, source, { workerOptions: 'foo', reapDirtThreshold });
+  const vk1 = k.provideVatKeeper(v1);
+
+  const v2 = k.allocateVatIDForNameIfNeeded('name2');
+  k.createVatState(v2, source, { workerOptions: 'foo', reapDirtThreshold });
+  const vk2 = k.provideVatKeeper(v2);
+
+  const v3 = k.allocateVatIDForNameIfNeeded('name3');
+  k.createVatState(v3, source, {
+    workerOptions: 'foo',
+    reapDirtThreshold: never,
+  });
+  const vk3 = k.provideVatKeeper(v3);
+
+  // the nominal "all clean" entry is { deliveries: 0, gcKrefs: 0,
+  // computrons: 0 }, but we only store the non-zero keys, so it's
+  // really {}
+  t.deepEqual(vk1.getReapDirt(), {});
+  t.deepEqual(vk2.getReapDirt(), {});
+
+  // our write-through cache should store the initial value in the DB
+  t.true(store.kvStore.has(`${v1}.reapDirt`));
+  t.deepEqual(JSON.parse(store.kvStore.get(`${v1}.reapDirt`)), {});
+
+  // changing one entry doesn't change any others
+  vk1.addDirt({ deliveries: 1, gcKrefs: 0, computrons: 12 });
+  t.deepEqual(vk1.getReapDirt(), { deliveries: 1, gcKrefs: 0, computrons: 12 });
+  t.deepEqual(vk2.getReapDirt(), {});
+  t.not(vk1.getReapDirt(), vk2.getReapDirt());
+  // and writes through the cache
+  t.deepEqual(JSON.parse(store.kvStore.get(`${v1}.reapDirt`)), {
+    deliveries: 1,
+    gcKrefs: 0,
+    computrons: 12,
+  });
+
+  // clearing the dirt will zero out the entries
+  vk1.clearReapDirt();
+  t.deepEqual(vk1.getReapDirt(), {});
+  t.deepEqual(JSON.parse(store.kvStore.get(`${v1}.reapDirt`)), {});
+
+  // nothing has reached the threshold yet
+  t.is(k.nextReapAction(), undefined);
+
+  vk1.addDirt({ deliveries: 4 });
+  t.deepEqual(vk1.getReapDirt(), { deliveries: 4 });
+  t.is(k.nextReapAction(), undefined);
+  vk1.addDirt({ deliveries: 5 });
+  t.deepEqual(vk1.getReapDirt(), { deliveries: 9 });
+  t.is(k.nextReapAction(), undefined);
+  vk1.addDirt({ deliveries: 6 });
+  t.deepEqual(vk1.getReapDirt(), { deliveries: 15 });
+  t.deepEqual(k.nextReapAction(), { type: 'bringOutYourDead', vatID: v1 });
+  t.is(k.nextReapAction(), undefined);
+
+  // dirt is ignored when the threshold is 'never'
+  vk3.addDirt({ deliveries: 4 });
+  t.deepEqual(vk3.getReapDirt(), {});
+});
+
+test('dirt upgrade', async t => {
+  const store = buildKeeperStorageInMemory();
+  const k = makeKernelKeeper(store, null);
+  k.createStartingKernelState({
+    defaultManagerType: 'local',
+  });
+  k.saveStats();
+  const v1 = k.allocateVatIDForNameIfNeeded('name1');
+  const source = { bundleID: 'foo' };
+  // actual vats get options.reapDirtThreshold ; we install
+  // options.reapInterval to simulate the old version
+  const options = { workerOptions: 'foo', reapInterval: 100 };
+  k.createVatState(v1, source, options);
+  const v2 = k.allocateVatIDForNameIfNeeded('comms');
+  const options2 = { ...options, reapInterval: 'never' };
+  k.createVatState(v2, source, options2);
+
+  // Test that upgrade from an older version of the DB will populate
+  // the right keys. We simulate the old version by modifying a
+  // serialized copy. The old version (on mainnet) had things like:
+  // * kernel.defaultReapInterval: 1000
+  // * v1.options: { ... reapInterval: 1000 }
+  // * v1.reapCountdown: 123
+  // * v1.reapInterval: 1000
+  // * v3.options: { ... reapInterval: 'never' }
+  // * v3.reapCountdown: 'never'
+  // * v3.reapInterval: 'never'
+
+  k.kvStore.delete(`kernel.defaultReapDirtThreshold`);
+  k.kvStore.set(`kernel.defaultReapInterval`, '300');
+
+  k.kvStore.delete(`${v1}.reapDirt`);
+  k.kvStore.delete(`${v1}.reapDirtThreshold`);
+  k.kvStore.set(`${v1}.reapInterval`, '100');
+  k.kvStore.set(`${v1}.reapCountdown`, '70');
+
+  k.kvStore.delete(`${v2}.reapDirt`);
+  k.kvStore.delete(`${v2}.reapDirtThreshold`);
+  k.kvStore.set(`${v2}.reapInterval`, 'never');
+  k.kvStore.set(`${v2}.reapCountdown`, 'never');
+
+  // upgrade is supposed to be the first thing a new kernel does
+  const k2 = duplicateKeeper(store.serialize);
+  k2.maybeUpgradeKernelState(); // also upgrades vats
+
+  t.true(k2.kvStore.has(`kernel.defaultReapDirtThreshold`));
+  // threshold.deliveries is converted from defaultReapInterval
+  t.deepEqual(JSON.parse(k2.kvStore.get(`kernel.defaultReapDirtThreshold`)), {
+    deliveries: 300,
+    gcKrefs: 20,
+    computrons: 'never',
+  });
+
+  t.true(k2.kvStore.has(`${v1}.reapDirt`));
+  // reapDirt.deliveries computed from old reapInterval-reapCountdown
+  t.deepEqual(JSON.parse(k2.kvStore.get(`${v1}.reapDirt`)), { deliveries: 30 });
+  // reapDirtThreshold.deliveries computed from old reapInterval
+  t.deepEqual(JSON.parse(k2.kvStore.get(`${v1}.options`)).reapDirtThreshold, {
+    deliveries: 100,
+    gcKrefs: 20,
+    computrons: 'never',
+  });
+  const vk1New = k2.provideVatKeeper(v1);
+  t.deepEqual(vk1New.getReapDirt(), { deliveries: 30 });
+
+  t.true(k2.kvStore.has(`${v2}.reapDirt`));
+  t.deepEqual(JSON.parse(k2.kvStore.get(`${v2}.reapDirt`)), {});
+  t.deepEqual(JSON.parse(k2.kvStore.get(`${v2}.options`)).reapDirtThreshold, {
+    deliveries: 'never',
+    gcKrefs: 'never', // upgrade must not start BOYDing comms vat
+    computrons: 'never',
+  });
 });

@@ -1,7 +1,9 @@
+/* eslint-disable no-use-before-define */
+
 /**
  * Kernel's keeper of persistent state for a vat.
  */
-import { Nat, isNat } from '@endo/nat';
+import { Nat } from '@endo/nat';
 import { assert, q, Fail } from '@agoric/assert';
 import { parseKernelSlot } from '../parseKernelSlots.js';
 import { makeVatSlot, parseVatSlot } from '../../lib/parseVatSlots.js';
@@ -18,7 +20,9 @@ import { enumeratePrefixedKeys } from './storageHelper.js';
  * @typedef { import('../../types-external.js').SnapStore } SnapStore
  * @typedef { import('../../types-external.js').SourceOfBundle } SourceOfBundle
  * @typedef { import('../../types-external.js').TranscriptStore } TranscriptStore
+ * @typedef { import('../../types-internal.js').Dirt } Dirt
  * @typedef { import('../../types-internal.js').VatManager } VatManager
+ * @typedef { import('../../types-internal.js').ReapDirtThreshold } ReapDirtThreshold
  * @typedef { import('../../types-internal.js').RecordedVatOptions } RecordedVatOptions
  * @typedef { import('../../types-internal.js').TranscriptEntry } TranscriptEntry
  * @import {TranscriptDeliverySaveSnapshot} from '../../types-internal.js'
@@ -53,17 +57,80 @@ export function initializeVatState(
   assert(source);
   assert('bundle' in source || 'bundleName' in source || 'bundleID' in source);
   assert.typeof(options, 'object');
-  const count = options.reapInterval;
-  assert(count === 'never' || isNat(count), `bad reapCountdown ${count}`);
 
   kvStore.set(`${vatID}.o.nextID`, `${FIRST_OBJECT_ID}`);
   kvStore.set(`${vatID}.p.nextID`, `${FIRST_PROMISE_ID}`);
   kvStore.set(`${vatID}.d.nextID`, `${FIRST_DEVICE_ID}`);
+  kvStore.set(`${vatID}.reapDirt`, JSON.stringify({}));
   kvStore.set(`${vatID}.source`, JSON.stringify(source));
   kvStore.set(`${vatID}.options`, JSON.stringify(options));
-  kvStore.set(`${vatID}.reapInterval`, `${count}`);
-  kvStore.set(`${vatID}.reapCountdown`, `${count}`);
   transcriptStore.initTranscript(vatID);
+}
+
+export function maybeUpgradeVatState(
+  vatID,
+  kvStore,
+  getDefaultReapDirtThreshold,
+) {
+  // This is called, once per vat, by maybeUpgradeKernelState.
+
+  // schema v0->v1: if the vat state has `reapInterval` and
+  // `reapCountdown` (and a .reapInterval in `options`) , replace them
+  // with `reapDirt` (and a .reapDirtThreshold in `options`)
+
+  const reapDirtKey = `${vatID}.reapDirt`;
+
+  if (!kvStore.has(reapDirtKey)) {
+    // initialize or upgrade state
+    const reapDirt = {}; // all missing keys are treated as zero
+    const threshold = { ...getDefaultReapDirtThreshold() };
+
+    // the old version also had vNN.options = { reapInterval } , but
+    // it was not updated by processChangeVatOptions, so only read the
+    // one from vNN.reapInterval
+
+    const vatOptionsKey = `${vatID}.options`;
+    const oldReapIntervalKey = `${vatID}.reapInterval`;
+    const oldReapCountdownKey = `${vatID}.reapCountdown`;
+
+    const reapIntervalString = kvStore.get(oldReapIntervalKey);
+    const reapCountdownString = kvStore.get(oldReapCountdownKey);
+    if (
+      reapIntervalString &&
+      reapIntervalString !== 'never' &&
+      reapCountdownString &&
+      reapCountdownString !== 'never'
+    ) {
+      // deduce delivery count from old countdown values
+      const reapInterval = Number.parseInt(reapIntervalString, 10);
+      const reapCountdown = Number.parseInt(reapCountdownString, 10);
+      const deliveries = reapInterval - reapCountdown;
+      reapDirt.deliveries = Math.max(deliveries, 0); // just in case
+      threshold.deliveries = reapInterval;
+    }
+
+    // old vats that were never reaped (eg comms) used
+    // reapInterval='never', so respect that and set the other
+    // threshold values to never as well
+    if (reapIntervalString === 'never') {
+      threshold.deliveries = 'never';
+      threshold.gcKrefs = 'never';
+      threshold.computrons = 'never';
+    }
+    if (reapIntervalString) {
+      kvStore.delete(oldReapIntervalKey);
+    }
+    if (reapCountdownString) {
+      kvStore.delete(oldReapCountdownKey);
+    }
+    kvStore.set(reapDirtKey, JSON.stringify(reapDirt));
+
+    // remove .reapInterval from options, replace with .reapDirtThreshold
+    const options = JSON.parse(kvStore.get(vatOptionsKey));
+    delete options.reapInterval;
+    options.reapDirtThreshold = threshold;
+    kvStore.set(vatOptionsKey, JSON.stringify(options));
+  }
 }
 
 /**
@@ -87,6 +154,7 @@ export function initializeVatState(
  * @param {*} incStat
  * @param {*} decStat
  * @param {*} getCrankNumber
+ * @param {*} scheduleReap
  * @param {SnapStore} [snapStore]
  * returns an object to hold and access the kernel's state for the given vat
  */
@@ -107,9 +175,15 @@ export function makeVatKeeper(
   incStat,
   decStat,
   getCrankNumber,
+  scheduleReap,
   snapStore = undefined,
 ) {
   insistVatID(vatID);
+
+  // note: calling makeVatKeeper() does not change the DB. Any
+  // initialization or upgrade must be complete before it is
+  // called. Only the methods returned by makeVatKeeper() will change
+  // the DB.
 
   function getRequired(key) {
     const value = kvStore.get(key);
@@ -118,6 +192,12 @@ export function makeVatKeeper(
     }
     return value;
   }
+
+  // We keep the vat's reap-dirt state (and threshold) in a
+  // write-through cache, and populate the cache at vatKeeper startup.
+  const reapDirtKey = `${vatID}.reapDirt`;
+  let reapDirt = JSON.parse(getRequired(reapDirtKey));
+  let reapDirtThreshold = getOptions().reapDirtThreshold;
 
   /**
    * @param {SourceOfBundle} source
@@ -148,33 +228,70 @@ export function makeVatKeeper(
     return harden(options);
   }
 
-  function updateReapInterval(reapInterval) {
-    reapInterval === 'never' ||
-      isNat(reapInterval) ||
-      Fail`bad reapInterval ${reapInterval}`;
-    kvStore.set(`${vatID}.reapInterval`, `${reapInterval}`);
-    if (reapInterval === 'never') {
-      kvStore.set(`${vatID}.reapCountdown`, 'never');
+  // This is named "addDirt" because it should increment all dirt
+  // counters (both for reap/BOYD and for heap snapshotting). We don't
+  // have `heapSnapshotDirt` yet, but when we do, it should get
+  // incremented here.
+
+  /**
+   * Add some "dirt" to the vat, possibly triggering a reap/BOYD.
+   *
+   * @param {Dirt} moreDirt
+   */
+  function addDirt(moreDirt) {
+    // this references our cached 'reapDirt' and 'reapDirtThreshold'
+    assert.typeof(moreDirt, 'object');
+    let reap = false;
+    for (const key of Object.keys(moreDirt)) {
+      const threshold = reapDirtThreshold[key];
+      // Don't accumulate dirt if it can't eventually trigger a
+      // BOYD. This is mainly to keep comms from counting upwards
+      // forever. TODO revisit this when we add heapSnapshotDirt,
+      // maybe check both thresholds and accumulate the dirt if either
+      // one is non-'never'.
+      if (threshold && threshold !== 'never') {
+        const oldDirt = reapDirt[key] || 0;
+        // The 'moreDirt' value might be Number or BigInt (eg
+        // .computrons). We coerce to Number so we can JSON-stringify.
+        const newDirt = oldDirt + Number(moreDirt[key]);
+        reapDirt[key] = newDirt;
+        if (newDirt >= threshold) {
+          reap = true;
+        }
+      }
+    }
+    kvStore.set(reapDirtKey, JSON.stringify(reapDirt));
+    if (reap) {
+      scheduleReap(vatID);
     }
   }
 
-  function countdownToReap() {
-    const rawCount = getRequired(`${vatID}.reapCountdown`);
-    if (rawCount === 'never') {
-      return false;
-    } else {
-      const count = Number.parseInt(rawCount, 10);
-      if (count === 1) {
-        kvStore.set(
-          `${vatID}.reapCountdown`,
-          getRequired(`${vatID}.reapInterval`),
-        );
-        return true;
-      } else {
-        kvStore.set(`${vatID}.reapCountdown`, `${count - 1}`);
-        return false;
-      }
-    }
+  function getReapDirt() {
+    return reapDirt;
+  }
+
+  function clearReapDirt() {
+    // This is only called after a BOYD, so it should only clear the
+    // reap/BOYD counters. If/when we add heap-snapshot counters,
+    // those should get cleared in a separate clearHeapSnapshotDirt()
+    // function.
+    reapDirt = {};
+    kvStore.set(reapDirtKey, JSON.stringify(reapDirt));
+  }
+
+  function getReapDirtThreshold() {
+    return reapDirtThreshold;
+  }
+
+  /**
+   * @param {ReapDirtThreshold} threshold
+   */
+  function setReapDirtThreshold(threshold) {
+    assert.typeof(threshold, 'object');
+    reapDirtThreshold = harden({ ...threshold });
+    const { ...options } = getOptions();
+    options.reapDirtThreshold = threshold;
+    kvStore.set(`${vatID}.options`, JSON.stringify(options));
   }
 
   function nextDeliveryNum() {
@@ -669,8 +786,11 @@ export function makeVatKeeper(
     setSourceAndOptions,
     getSourceAndOptions,
     getOptions,
-    countdownToReap,
-    updateReapInterval,
+    addDirt,
+    getReapDirt,
+    clearReapDirt,
+    getReapDirtThreshold,
+    setReapDirtThreshold,
     nextDeliveryNum,
     getIncarnationNumber,
     importsKernelSlot,

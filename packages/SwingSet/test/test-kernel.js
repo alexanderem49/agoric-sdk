@@ -3,7 +3,7 @@
 import { test } from '../tools/prepare-test-env-ava.js';
 
 import { Fail } from '@agoric/assert';
-import { kser, kslot } from '@agoric/kmarshal';
+import { kser, kunser, kslot } from '@agoric/kmarshal';
 import buildKernel from '../src/kernel/index.js';
 import { initializeKernel } from '../src/controller/initializeKernel.js';
 import { makeVatSlot } from '../src/lib/parseVatSlots.js';
@@ -1634,4 +1634,124 @@ test('reap interval 17', async t => {
 
 test('reap interval never', async t => {
   await reapTest(t, 'never');
+});
+
+// Set up two vats, one to export vrefs, the other to import/drop
+// them. The first will get a reapDirtThreshold.gcKrefs, and will log
+// when the kernel sends it BOYD.
+
+async function reapGCKrefsTest(t, freq) {
+  const kernel = await makeKernel();
+  await kernel.start();
+  // note: worker=local, otherwise snapshotInitial/Interval would interfere
+
+  let boyds = 0;
+  let rxGCkrefs = 0;
+  let lastExported = 2;
+
+  // vat-under-test, export vrefs on request, watch for BOYDs
+  function setup1(syscall) {
+    function dispatch(vatDeliverObject) {
+      if (vatDeliverObject[0] === 'startVat') {
+        return; // skip startVat
+      }
+      if (vatDeliverObject[0] === 'message') {
+        // export vrefs, one per message
+        const target = vatDeliverObject[2].methargs.slots[0];
+        const vref = `o+${lastExported}`;
+        lastExported += 1;
+        syscall.send(target, kser(['hold', [kslot(vref)]]));
+        return;
+      }
+      if (vatDeliverObject[0] === 'bringOutYourDead') {
+        boyds += 1;
+      }
+      if (vatDeliverObject[0] === 'dropExports') {
+        rxGCkrefs += vatDeliverObject[1].length;
+      }
+      if (vatDeliverObject[0] === 'retireExports') {
+        rxGCkrefs += vatDeliverObject[1].length;
+      }
+      if (vatDeliverObject[0] === 'retireImports') {
+        rxGCkrefs += vatDeliverObject[1].length;
+      }
+    }
+    return dispatch;
+  }
+  const vat1 = await kernel.createTestVat(
+    'vat1',
+    setup1,
+    {},
+    { reapInterval: 'never', reapGCKrefs: freq },
+  );
+  const v1root = kernel.getRootObject(vat1);
+  kernel.pinObject(v1root);
+
+  // helper vat, imports vrefs, drops on request
+  function setup2(syscall) {
+    const hold = [];
+    function dispatch(vatDeliverObject) {
+      if (vatDeliverObject[0] === 'startVat') {
+        return; // skip startVat
+      }
+      if (vatDeliverObject[0] === 'message') {
+        const [meth, args] = kunser(vatDeliverObject[2].methargs);
+        if (meth === 'hold') {
+          for (const vref of vatDeliverObject[2].methargs.slots) {
+            hold.push(vref);
+          }
+        } else {
+          const [count] = args;
+          syscall.dropImports(hold.slice(0, count));
+          syscall.retireImports(hold.slice(0, count));
+          hold.splice(0, count);
+        }
+      }
+    }
+    return dispatch;
+  }
+  const vat2 = await kernel.createTestVat('vat2', setup2, {});
+  const v2root = kernel.getRootObject(vat2);
+  kernel.pinObject(v2root);
+
+  await kernel.run();
+  t.is(boyds, 0);
+
+  async function addExport() {
+    kernel.queueToKref(v1root, `pleaseExport`, [kslot(v2root)], 'none');
+    await kernel.run();
+  }
+
+  async function doDrop(count) {
+    kernel.queueToKref(v2root, `drop`, [count], 'none');
+    await kernel.run();
+  }
+
+  await addExport();
+  await addExport();
+  t.is(boyds, 0);
+  // c-list should currently have two krefs exported by the vat
+
+  // now we drop one for every new one we add, and every 'interval'/2
+  // we should see a BOYD
+
+  let krefs = 0;
+  for (let i = 0; i < 10; i += 1) {
+    await addExport();
+    await doDrop(1);
+    krefs += 2;
+    t.is(rxGCkrefs, krefs);
+    if (krefs < freq) {
+      t.is(boyds, 0);
+    } else {
+      t.is(boyds, 1);
+      boyds = 0;
+      krefs = 0;
+      rxGCkrefs = 0;
+    }
+  }
+}
+
+test('reap gc-krefs 10', async t => {
+  await reapGCKrefsTest(t, 10);
 });
