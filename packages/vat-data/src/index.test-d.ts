@@ -1,24 +1,29 @@
 /* eslint-disable no-use-before-define */
-import { expectNotType, expectType } from 'tsd';
+import { TypedMatcher } from '@agoric/internal/src/types.js';
 import type {
-  KindFacets,
   DurableKindHandle,
-  KindFacet,
   FunctionsPlusContext,
+  KindFacet,
+  KindFacets,
 } from '@agoric/swingset-liveslots';
 import { VirtualObjectManager } from '@agoric/swingset-liveslots/src/virtualObjectManager.js';
-import { TypedMatcher } from '@agoric/internal/src/types.js';
+import { InterfaceGuard } from '@endo/patterns';
+import { expectNotType, expectType } from 'tsd';
 import {
+  defineDurableKind,
   defineKind,
   defineKindMulti,
-  makeKindHandle,
-  defineDurableKind,
-  partialAssign,
-  watchPromise,
-  prepareExo,
   M,
+  makeKindHandle,
+  partialAssign,
+  prepareExo,
+  watchPromise,
 } from '.';
-import { GuardedMethod, GuardedMethods, TypedMethodGuard } from './types.js';
+import {
+  GuardedMethod,
+  TypedInterfaceGuard,
+  TypedMethodGuard,
+} from './types.js';
 
 // for use in assignments below
 const anyVal = null as any;
@@ -200,9 +205,15 @@ const Mnumber = M.number() as TypedMatcher<number>;
   >;
   const numIdentity: GuardedMethod<typeof numIdentityGuard> = x => x;
   expectType<number>(numIdentity(3));
+
+  const untypedGuard = M.call(Mnumber).returns(Mnumber);
+  // @ts-expect-error cannot assign to never
+  const untypedIdentity: GuardedMethod<typeof untypedGuard> = x => x;
+  expectType<never>(untypedIdentity);
 }
 
 {
+  // TypedMethodGuard
   const baggage = null as any;
   const UpCounterI = M.interface('UpCounter', {
     // TODO infer the TypedMethodGuard signature from the fluent builder
@@ -210,6 +221,8 @@ const Mnumber = M.number() as TypedMatcher<number>;
       (y: number) => number
     >,
   });
+  expectType<InterfaceGuard>(UpCounterI);
+  expectType<TypedInterfaceGuard>(UpCounterI);
   const exo = prepareExo(baggage, 'upCounter', UpCounterI, {
     adjustBy(y) {
       expectType<number>(y);
@@ -218,11 +231,38 @@ const Mnumber = M.number() as TypedMatcher<number>;
     },
   });
   expectType<(y: number) => number>(exo.adjustBy);
+  // @ts-expect-error invalid argument
+  exo.adjustBy('foo');
+  // @ts-expect-error cannot add number to bigint
+  exo.adjustBy(1) + 1n;
 
   prepareExo(baggage, 'upCounter', UpCounterI, {
-    // @ts-expect-error invalid return type
+    // TODO error on the faulty return type
     adjustBy(y) {
+      expectType<number>(y);
       return 'hi';
     },
   });
+}
+
+{
+  // MethodGuard with type on impl
+  const baggage = null as any;
+  const UpCounterI = M.interface('UpCounter', {
+    adjustBy: M.call(Mnumber).returns(Mnumber),
+  });
+  expectType<InterfaceGuard>(UpCounterI);
+  expectNotType<TypedInterfaceGuard>(UpCounterI);
+  const exo = prepareExo(baggage, 'upCounter', UpCounterI, {
+    /** @param {number} y */
+    adjustBy(y) {
+      return y;
+    },
+  });
+  // @ts-expect-error must not be any
+  exo.adjustBy + 1;
+  // TODO propagate return type instead of `any`
+  exo.adjustBy(1) + 1n;
+
+  expectType<(y: number) => number>(exo.adjustBy);
 }
