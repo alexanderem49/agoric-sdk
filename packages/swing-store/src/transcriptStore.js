@@ -18,7 +18,7 @@ import { createSHA256 } from './hasher.js';
  *   rolloverSpan: (vatID: string) => number,
  *   rolloverIncarnation: (vatID: string) => number,
  *   getCurrentSpanBounds: (vatID: string) => { startPos: number, endPos: number, hash: string, incarnation: number },
- *   deleteVatTranscripts: (vatID: string) => void,
+ *   deleteVatTranscripts: (vatID: string, budget?: number) => { done: boolean, cleanups: number },
  *   addItem: (vatID: string, item: string) => void,
  *   readSpan: (vatID: string, startPos?: number) => IterableIterator<string>,
  * }} TranscriptStore
@@ -314,12 +314,64 @@ export function makeTranscriptStore(
     ORDER BY startPos
   `);
 
+  const sqlGetSomeVatSpans = db.prepare(`
+    SELECT vatID, startPos, endPos, isCurrent
+    FROM transcriptSpans
+    WHERE vatID = ?
+    ORDER BY startPos DESC
+    LIMIT ?
+  `);
+
+  const sqlDeleteVatSpan = db.prepare(`
+    DELETE FROM transcriptSpans
+    WHERE vatID = ? AND startPos = ?
+  `);
+
+  const sqlDeleteSomeItems = db.prepare(`
+    DELETE FROM transcriptItems
+    WHERE vatID = ? AND position >= ? AND position < ?
+  `);
+
   /**
-   * Delete all transcript data for a given vat (for use when, e.g., a vat is terminated)
    *
    * @param {string} vatID
+   * @returns {boolean}
    */
-  function deleteVatTranscripts(vatID) {
+  function hasSpans(vatID) {
+    const spans = sqlGetSomeVatSpans.all(vatID, 1);
+    return !!spans.length;
+  }
+
+  /**
+   *
+   * @param {string} vatID
+   * @param {number} budget
+   * @returns {{ done: boolean, cleanups: number }}
+   */
+  function deleteSomeVatTranscripts(vatID, budget) {
+    ensureTxn();
+    assert(budget >= 1);
+    let cleanups = 0;
+    // this query is ORDER BY startPos DESC, so we delete the
+    // isCurrent=1 span first, which causes export to ignore the
+    // entire vat (good, since it's deleted)
+    const deletions = sqlGetSomeVatSpans.all(vatID, budget);
+    if (!deletions.length) {
+      return { done: true, cleanups };
+    }
+    for (const rec of deletions) {
+      noteExport(spanMetadataKey(rec), undefined);
+      sqlDeleteVatSpan.run(vatID, rec.startPos);
+      sqlDeleteSomeItems.run(vatID, rec.startPos, rec.endPos);
+      cleanups += 1;
+    }
+    if (hasSpans(vatID)) {
+      return { done: false, cleanups };
+    }
+    return { done: true, cleanups };
+  }
+
+  function deleteAllVatTranscripts(vatID) {
     ensureTxn();
     const deletions = sqlGetVatSpans.all(vatID);
     for (const rec of deletions) {
@@ -327,6 +379,24 @@ export function makeTranscriptStore(
     }
     sqlDeleteVatItems.run(vatID);
     sqlDeleteVatSpans.run(vatID);
+  }
+
+  /**
+   * Delete some or all transcript data for a given vat (for use when,
+   * e.g., a vat is terminated)
+   *
+   * @param {string} vatID
+   * @param {number} [budget]
+   * @returns {{ done: boolean, cleanups: number }}
+   */
+  function deleteVatTranscripts(vatID, budget = undefined) {
+    if (budget) {
+      return deleteSomeVatTranscripts(vatID, budget);
+    } else {
+      deleteAllVatTranscripts(vatID);
+      // no budget? no accounting.
+      return { done: true, cleanups: 0 };
+    }
   }
 
   const sqlGetAllSpanMetadata = db.prepare(`
@@ -378,6 +448,12 @@ export function makeTranscriptStore(
    *
    * The only code path which could use 'false' would be `swingstore.dump()`,
    * which takes the same flag.
+   *
+   * Note that when a vat is terminated and has been partially
+   * deleted, we will retain (and return) a subset of the metadata
+   * records, because they must be deleted in-consensus and with
+   * updates to the noteExport hook. But we don't create any artifacts
+   * for the terminated vats, even for the spans that remain,
    *
    * @yields {readonly [key: string, value: string]}
    * @returns {IterableIterator<readonly [key: string, value: string]>}
@@ -432,9 +508,16 @@ export function makeTranscriptStore(
         }
       }
     } else if (artifactMode === 'archival') {
-      // everything
+      // every span for all vatIDs that have an isCurrent span (to
+      // ignore terminated/partially-deleted vats)
+      const vatIDs = new Set();
+      for (const { vatID } of sqlGetCurrentSpanMetadata.iterate()) {
+        vatIDs.add(vatID);
+      }
       for (const rec of sqlGetAllSpanMetadata.iterate()) {
-        yield spanArtifactName(rec);
+        if (vatIDs.has(rec.vatID)) {
+          yield spanArtifactName(rec);
+        }
       }
     } else if (artifactMode === 'debug') {
       // everything that is a complete span

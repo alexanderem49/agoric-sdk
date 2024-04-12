@@ -37,7 +37,7 @@ import { buffer } from './util.js';
  *   loadSnapshot: (vatID: string) => AsyncIterableIterator<Uint8Array>,
  *   saveSnapshot: (vatID: string, snapPos: number, snapshotStream: AsyncIterable<Uint8Array>) => Promise<SnapshotResult>,
  *   deleteAllUnusedSnapshots: () => void,
- *   deleteVatSnapshots: (vatID: string) => void,
+ *   deleteVatSnapshots: (vatID: string, budget?: number) => { done: boolean, cleanups: number },
  *   stopUsingLastSnapshot: (vatID: string) => void,
  *   getSnapshotInfo: (vatID: string) => SnapshotInfo,
  * }} SnapStore
@@ -352,6 +352,11 @@ export function makeSnapStore(
     WHERE vatID = ?
   `);
 
+  const sqlDeleteOneVatSnapshot = db.prepare(`
+    DELETE FROM snapshots
+    WHERE vatID = ? AND snapPos = ?
+  `);
+
   const sqlGetSnapshotList = db.prepare(`
     SELECT snapPos
     FROM snapshots
@@ -360,20 +365,93 @@ export function makeSnapStore(
   `);
   sqlGetSnapshotList.pluck(true);
 
+  const sqlGetSnapshotListLimited = db.prepare(`
+    SELECT snapPos
+    FROM snapshots
+    WHERE vatID = ?
+    ORDER BY snapPos ASC
+    LIMIT ?
+  `);
+  sqlGetSnapshotListLimited.pluck(true);
+
   /**
-   * Delete all snapshots for a given vat (for use when, e.g., a vat is terminated)
+   * @param {string} vatID
+   * @returns {boolean}
+   */
+  function hasSnapshots(vatID) {
+    return !!sqlGetSnapshotListLimited.all(vatID, 1).length;
+  }
+
+  /**
+   *
+   * @param {string} vatID
+   * @param {number} budget
+   * @returns {{ done: boolean, cleanups: number }}
+   */
+  function deleteSomeVatSnapshots(vatID, budget) {
+    // Unlike transcripts, here we delete the oldest snapshots first,
+    // to simplify the logic: we delete the only inUse=1 snapshot
+    // last, and then immediately delete the .current record, at which
+    // point we're done. This has a side-effect of keeping the unused
+    // snapshot in the export artifacts longer, but it doesn't seem
+    // worth fixing.
+    ensureTxn();
+    assert(budget >= 1);
+    let cleanups = 0;
+    const deletions = sqlGetSnapshotListLimited.all(vatID, budget);
+    if (!deletions.length) {
+      return { done: true, cleanups };
+    }
+    for (const snapPos of deletions) {
+      const exportRec = snapshotRec(vatID, snapPos, undefined);
+      noteExport(snapshotMetadataKey(exportRec), undefined);
+      cleanups += 1;
+      sqlDeleteOneVatSnapshot.run(vatID, snapPos);
+    }
+    if (hasSnapshots(vatID)) {
+      // if any snapshots remain, even the inUse=1, ask to keep going
+      return { done: false, cleanups };
+    }
+    // if we reach here, the last sqlDeleteOneVatSnapshot() in that
+    // loop had deleted the inUse=1 snapshot and the corresponding
+    // snapshotMetadataKey, so now it is time to delete the .current
+    // record and inform the kernel that we're done
+    noteExport(currentSnapshotMetadataKey({ vatID }), undefined);
+    return { done: true, cleanups };
+  }
+
+  /**
    *
    * @param {string} vatID
    */
-  function deleteVatSnapshots(vatID) {
+  function deleteAllVatSnapshots(vatID) {
     ensureTxn();
     const deletions = sqlGetSnapshotList.all(vatID);
     for (const snapPos of deletions) {
       const exportRec = snapshotRec(vatID, snapPos, undefined);
       noteExport(snapshotMetadataKey(exportRec), undefined);
     }
-    noteExport(currentSnapshotMetadataKey({ vatID }), undefined);
+    // fastest to delete them all in a single DB statement
     sqlDeleteVatSnapshots.run(vatID);
+    noteExport(currentSnapshotMetadataKey({ vatID }), undefined);
+  }
+
+  /**
+   * Delete some or all snapshots for a given vat (for use when, e.g.,
+   * a vat is terminated)
+   *
+   * @param {string} vatID
+   * @param {number} [budget]
+   * @returns {{ done: boolean, cleanups: number }}
+   */
+  function deleteVatSnapshots(vatID, budget = undefined) {
+    if (budget) {
+      return deleteSomeVatSnapshots(vatID, budget);
+    } else {
+      deleteAllVatSnapshots(vatID);
+      // if you didn't set a budget, you won't be counting deletions
+      return { done: true, cleanups: 0 };
+    }
   }
 
   const sqlGetSnapshotInfo = db.prepare(`
