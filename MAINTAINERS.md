@@ -92,7 +92,7 @@ in this branch. The release tags will be human-meaningful, the release branch ne
 
 - [ ] Generate new SDK version and per-package CHANGELOG.md files
 
-  To generate a `$VERSION-$PRE.$N` dev release that will not be accidentally selected by downstream package.json files, eplace `--conventional-graduate` with `--conventional-prerelease --preid "$PRE"`.
+  To generate a `$VERSION-$PRE.$N` dev release that will not be accidentally selected by downstream package.json files, replace `--conventional-graduate` with `--conventional-prerelease --preid "$PRE"`.
 
   These instructions will:
 
