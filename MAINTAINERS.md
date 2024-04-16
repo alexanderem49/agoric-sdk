@@ -222,10 +222,20 @@ to pass.
 
 - [ ] Create a GitHub release
 
-  Follow the [GitHub
-  instructions](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
-  ) and use previous releases as a template. This uses the
-  validator-oriented release description.
+  Generate a template:
+  ```sh
+  ./scripts/gen-github-release <release-label> > release.md
+  ```
+  Then replace the remaining `$`-prefixed placeholders, filling in
+  the validator-oriented release description and using
+  [previous releases](https://github.com/Agoric/agoric-sdk/releases)
+  as a guide.
+  When complete, contents can be pasted into the
+  [new release form](https://github.com/Agoric/agoric-sdk/releases/new)
+  along with the just-pushed tag and an identically-named title.
+
+  For more information, refer to
+  [GitHub instructions](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository).
 
 ### Cleanup
 
