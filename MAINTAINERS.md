@@ -47,7 +47,8 @@ The Release Owner and other appropriate stakeholders must agree on:
 - [ ] When a new release is planned, create a new branch from branch `release-mainnet1B` with a name like `dev-$releaseShortLabel` (example: `dev-upgrade-8`). This can be done from the command line or the [GitHub Branches UI](https://github.com/Agoric/agoric-sdk/branches).
 - [ ] Initialize the new branch for the planned upgrade:
   - [ ] In **golang/cosmos/app/app.go**, update the `upgradeName` constants and the associated upgrade handler function name to correspond with the [_**upgrade name**_](#assign-release-parameters).
-  - [ ] Ensure that **a3p-integration/package.json** has an object-valued `agoricSyntheticChain` property with `fromTag` set to the [agoric-3-proposals Docker images](https://github.com/Agoric/agoric-3-proposals/pkgs/container/agoric-3-proposals) tag associated with the previous release.
+  - [ ] Ensure that **a3p-integration/package.json** has an object-valued `agoricSyntheticChain` property with `fromTag` set to the [agoric-3-proposals Docker images](https://github.com/Agoric/agoric-3-proposals/pkgs/container/agoric-3-proposals) tag associated with the previous release
+    (example: `use-upgrade-7`).
   - [ ] Ensure that **a3p-integration/proposals** contains a single subdirectory with the following characteristics
     - named like "$prefix:[_**release short label**_](#assign-release-parameters)" per [agoric-3-proposals: Naming](https://github.com/Agoric/agoric-3-proposals/pkgs/container/agoric-3-proposals#naming) (conventionally using "a" for the unreleased $prefix, e.g. `a:upgrade-8`)
     - containing a **package.json** having an object-valued `agoricProposal` property with `sdkImageTag` set to "unreleased" and `planName` set to the [_**upgrade name**_](#assign-release-parameters)
