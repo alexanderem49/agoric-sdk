@@ -51,9 +51,9 @@ The Release Owner and other appropriate stakeholders must agree on:
   - [ ] Ensure that **a3p-integration/package.json** has an object-valued `agoricSyntheticChain` property with `fromTag` set to the [agoric-3-proposals Docker images](https://github.com/Agoric/agoric-3-proposals/pkgs/container/agoric-3-proposals) tag associated with the previous release
     (example: `use-upgrade-7`).
   - [ ] Ensure that **a3p-integration/proposals** contains a single subdirectory with the following characteristics
-    - named like "$prefix:[_**release short label**_](#assign-release-parameters)" per [agoric-3-proposals: Naming](https://github.com/Agoric/agoric-3-proposals/pkgs/container/agoric-3-proposals#naming) (conventionally using "a" for the unreleased $prefix, e.g. `a:upgrade-8`)
+    - named like "$prefix:[_**release short label**_](#assign-release-parameters)" per [agoric-3-proposals: Naming](https://github.com/Agoric/agoric-3-proposals#naming) (conventionally using "a" for the unreleased $prefix, e.g. `a:upgrade-8`)
     - containing a **package.json** having an object-valued `agoricProposal` property with `sdkImageTag` set to "unreleased" and `planName` set to the [_**upgrade name**_](#assign-release-parameters)
-    - containing other files appropriate for the upgrade per [agoric-3-proposals: Files](https://github.com/Agoric/agoric-3-proposals/pkgs/container/agoric-3-proposals#files)
+    - containing other files appropriate for the upgrade per [agoric-3-proposals: Files](https://github.com/Agoric/agoric-3-proposals#files)
 
     For example, see the [upgrade-14 PR](https://github.com/Agoric/agoric-sdk/pull/8755).
 
