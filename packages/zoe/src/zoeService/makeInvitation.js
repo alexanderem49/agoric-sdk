@@ -28,6 +28,8 @@ export const prepareInvitationKit = (baggage, shutdownZoeVat = undefined) => {
     // Upgrade this legacy state by simply deleting it.
     invitationKitBaggage.delete(ZOE_INVITATION_KIT);
   }
+
+  /** @type {IssuerKit<'set', InvitationDetails>} */
   const invitationKit = prepareIssuerKit(
     invitationKitBaggage,
     'Zoe Invitation',
