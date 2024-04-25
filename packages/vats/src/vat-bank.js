@@ -344,7 +344,6 @@ const prepareAssetSubscription = zone => {
     brandToAssetDescriptor,
     assetSubscriber,
   ) => {
-    // @ts-expect-error XXX
     return provideLazy(assetSubscriptionCache, brandToAssetDescriptor, () =>
       makeAssetSubscription(brandToAssetDescriptor, assetSubscriber),
     );
