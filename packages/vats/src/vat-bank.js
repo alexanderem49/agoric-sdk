@@ -355,8 +355,8 @@ const prepareAssetSubscription = zone => {
 /**
  * @template {AssetKind} [K=AssetKind]
  * @typedef {object} AssetIssuerKit
- * @property {ERef<Mint<K>>} [mint]
- * @property {ERef<Issuer<K>>} issuer
+ * @property {Mint<K>} [mint]
+ * @property {Issuer<K>} issuer
  * @property {Brand<K>} brand
  */
 
@@ -588,7 +588,6 @@ const prepareBankManager = (
      * @param {Pick<import('./types.js').NameHubKit['nameAdmin'], 'update'>} [args.nameAdmin]
      */
     ({ bankChannel, denomToAddressUpdater, nameAdmin }) => {
-      // @ts-expect-error XXX
       /** @type {MapStore<Brand, AssetRecord>} */
       const brandToAssetRecord = detachedZone.mapStore('brandToAssetRecord');
       /** @type {MapStore<Brand, AssetDescriptor>} */
