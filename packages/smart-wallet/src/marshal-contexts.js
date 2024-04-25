@@ -6,11 +6,11 @@ import { DEFAULT_PREFIX } from '@agoric/vats/src/lib-board.js';
 
 const { Fail, quote: q } = assert;
 
-/** @import {BoardId} from '@agoric/vats/src/lib-board.js' */
-
 /**
- * @import {Key} from '@endo/patterns')
- * @import {Passable, RemotableObject} from '@endo/pass-style')
+ * @import {PassableCap} from '@endo/marshal';
+ * @import {Key} from '@endo/patterns';
+ * @import {Passable, RemotableObject} from '@endo/pass-style';
+ * @import {BoardId} from '@agoric/vats/src/lib-board.js';
  */
 
 /**
@@ -85,7 +85,7 @@ const parseWalletSlot = (tables, slot) => {
 
 /**
  * @template {Key} Slot
- * @template {Key} Val
+ * @template {PassableCap} Val
  *
  * @typedef {{
  *   bySlot: MapStore<Slot, Val>,
@@ -95,8 +95,8 @@ const parseWalletSlot = (tables, slot) => {
 
 /**
  * @template {Key} Slot
- * @template {Key} Val
- * @param {IdTable<Slot, Val>} table
+ * @template {PassableCap} Val
+ * @param {IdTable<Slot, PassableCap>} table
  * @param {Slot} slot
  * @param {Val} val
  */
@@ -131,13 +131,13 @@ export const makeExportContext = () => {
       byVal: makeScalarMapStore(),
     },
     // TODO: offer, contact, dapp
-    /** @type {IdTable<number, Key>} */
+    /** @type {IdTable<number, PassableCap>} */
     unknown: {
       bySlot: makeScalarMapStore(),
       byVal: makeScalarMapStore(),
     },
   };
-  /** @type {IdTable<BoardId, Key>} */
+  /** @type {IdTable<BoardId, PassableCap>} */
   const boardObjects = {
     bySlot: makeScalarMapStore(),
     byVal: makeScalarMapStore(),
@@ -166,7 +166,7 @@ export const makeExportContext = () => {
   let unknownNonce = 0;
 
   /**
-   * @param {unknown} val
+   * @param {PassableCap} val
    * @returns {MixedSlot<typeof walletObjects>}
    */
   const valToSlot = val => {
@@ -186,7 +186,7 @@ export const makeExportContext = () => {
   };
 
   /**
-   * @template {Key} V
+   * @template {PassableCap} V
    * @param {string & keyof typeof walletObjects} kind
    * @param {IdTable<number, V>} table
    */
@@ -213,14 +213,14 @@ export const makeExportContext = () => {
     purseEntries: walletObjects.purse.bySlot.entries,
     /**
      * @param {BoardId} id
-     * @param {unknown} val
+     * @param {PassableCap} val
      */
     initBoardId: (id, val) => {
       initSlotVal(boardObjects, id, val);
     },
     /**
      * @param {BoardId} id
-     * @param {Key} val
+     * @param {PassableCap} val
      */
     ensureBoardId: (id, val) => {
       if (boardObjects.byVal.has(val)) {
@@ -248,23 +248,23 @@ const defaultMakePresence = iface => {
  */
 export const makeImportContext = (makePresence = defaultMakePresence) => {
   const walletObjects = {
-    /** @type {IdTable<number, Key>} */
+    /** @type {IdTable<number, PassableCap>} */
     purse: {
       bySlot: makeScalarMapStore(),
       byVal: makeScalarMapStore(),
     },
-    /** @type {IdTable<number, Key>} */
+    /** @type {IdTable<number, PassableCap>} */
     payment: {
       bySlot: makeScalarMapStore(),
       byVal: makeScalarMapStore(),
     },
-    /** @type {IdTable<number, Key>} */
+    /** @type {IdTable<number, PassableCap>} */
     unknown: {
       bySlot: makeScalarMapStore(),
       byVal: makeScalarMapStore(),
     },
   };
-  /** @type {IdTable<BoardId, Key>} */
+  /** @type {IdTable<BoardId, PassableCap>} */
   const boardObjects = {
     bySlot: makeScalarMapStore(),
     byVal: makeScalarMapStore(),
@@ -272,7 +272,7 @@ export const makeImportContext = (makePresence = defaultMakePresence) => {
 
   /**
    * @template {Key} Slot
-   * @template {Key} Val
+   * @template {PassableCap} Val
    * @param {IdTable<Slot, Val>} table
    * @param {Slot} slot
    * @param {string} iface
@@ -314,7 +314,7 @@ export const makeImportContext = (makePresence = defaultMakePresence) => {
 
   const valToSlot = {
     fromBoard: val => boardObjects.byVal.get(val),
-    /** @param {unknown} val */
+    /** @param {PassableCap} val */
     fromMyWallet: val => {
       const kind = findKey(walletObjects, k => walletObjects[k].byVal.has(val));
       if (kind === undefined) {
@@ -340,14 +340,14 @@ export const makeImportContext = (makePresence = defaultMakePresence) => {
   return harden({
     /**
      * @param {BoardId} id
-     * @param {Key} val
+     * @param {PassableCap} val
      */
     initBoardId: (id, val) => {
       initSlotVal(boardObjects, id, val);
     },
     /**
      * @param {BoardId} id
-     * @param {Key} val
+     * @param {PassableCap} val
      */
     ensureBoardId: (id, val) => {
       if (boardObjects.byVal.has(val)) {

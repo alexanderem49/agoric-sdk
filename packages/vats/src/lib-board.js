@@ -15,7 +15,10 @@ import { makeMarshal } from '@endo/marshal';
 
 import { crc6 } from './crc.js';
 
-/** @import {Key} from '@endo/patterns') */
+/**
+ * @import {PassableCap} from '@endo/marshal';
+ * @import {Key} from '@endo/patterns');
+ */
 
 export const DEFAULT_CRC_DIGITS = 2;
 export const DEFAULT_PREFIX = 'board0';
@@ -185,7 +188,7 @@ const makeSlotToVal = state => {
   /**
    * @param {BoardId} slot
    * @param {string} iface
-   * @returns {unknown}
+   * @returns {any}
    */
   const slotToVal = (slot, iface) => {
     if (slot !== null) {
@@ -295,6 +298,7 @@ export const prepareBoardKit = baggage => {
             return board;
           }
           const [first, ...rest] = path;
+          /** @type {any} */
           const firstValue = board.getValue(/** @type {BoardId} */ (first));
           if (rest.length === 0) {
             return firstValue;
