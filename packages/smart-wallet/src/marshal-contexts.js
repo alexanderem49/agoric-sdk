@@ -239,11 +239,12 @@ const defaultMakePresence = iface => {
   return Far(severed, {});
 };
 
+// TODO makePresence to return Key
 /**
  * Make context for marshalling wallet or board data.
  * To be imported into the client, which never exports objects.
  *
- * @param {(iface: string) => Key} [makePresence]
+ * @param {(iface: string) => any} [makePresence]
  */
 export const makeImportContext = (makePresence = defaultMakePresence) => {
   const walletObjects = {
