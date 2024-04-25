@@ -1,6 +1,10 @@
 export {};
 
-/** @import {ContractStartFunction} from '@agoric/zoe/src/zoeService/utils.js' */
+/**
+ * @import {Guarded} from '@endo/exo';
+ * @import {Passable, RemotableObject} from '@endo/pass-style';
+ * @import {ContractStartFunction} from '@agoric/zoe/src/zoeService/utils.js';
+ */
 
 /**
  * @typedef { 'unranked' | 'order' | 'plurality' } ChoiceMethod
@@ -727,7 +731,7 @@ export {};
  * Akin to StartedInstanceKit but designed for the results of starting governed contracts. Used in bootstrap space.
  * @property {AdminFacet} adminFacet of the governed contract
  * @property {LimitedCF<SF>} creatorFacet creator-like facet within the governed contract (without the powers the governor needs)
- * @property {GovernorCreatorFacet<SF>} governorCreatorFacet of the governing contract
+ * @property {Guarded<GovernorCreatorFacet<SF>>} governorCreatorFacet of the governing contract
  * @property {AdminFacet} governorAdminFacet of the governing contract
  * @property {Awaited<ReturnType<SF>>['publicFacet']} publicFacet
  * @property {Instance} instance
