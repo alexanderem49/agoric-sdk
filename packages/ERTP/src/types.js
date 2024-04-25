@@ -228,7 +228,7 @@ export {};
 
 /**
  * @template {AssetKind} [K=AssetKind]
- * @template {Key} [M=Key] member kind, for Amounts that have member values
+ * @template {Key} [M=any] member kind, for Amounts that have member values
  * @typedef {object} IssuerKit
  * @property {Mint<K, M>} mint
  * @property {Purse<K, M>} mintRecoveryPurse Externally useful only if this
