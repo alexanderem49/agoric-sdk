@@ -2,7 +2,7 @@ export {};
 
 /**
  * @import {Guarded} from '@endo/exo';
- * @import {Passable, RemotableObject} from '@endo/pass-style';
+ * @import {Passable, Container} from '@endo/pass-style';
  * @import {ContractStartFunction} from '@agoric/zoe/src/zoeService/utils.js';
  */
 
@@ -38,9 +38,9 @@ export {};
  */
 
 /**
- * @typedef { Amount | Brand | Installation | Instance | bigint |
+ * @typedef { Amount | Brand | Installation | Instance | number | bigint |
  *   Ratio | string | import('@agoric/time').TimestampRecord |
- *   import('@agoric/time').RelativeTimeRecord | unknown } ParamValue
+ *   import('@agoric/time').RelativeTimeRecord | Container<any, any> } ParamValue
  */
 
 // XXX better to use the manifest constant ParamTypes
@@ -488,7 +488,7 @@ export {};
 
 /**
  * @typedef {object} ChangeParamsPosition
- * @property {Record<string,ParamValue>} changes one or more changes to parameters
+ * @property {Record<string, ParamValue>} changes one or more changes to parameters
  */
 
 /**
@@ -504,7 +504,7 @@ export {};
 /**
  * @typedef {object} InvokeApiPosition
  * @property {string} apiMethodName
- * @property {unknown[]} methodArgs
+ * @property {Passable[]} methodArgs
  */
 
 /**
@@ -629,7 +629,7 @@ export {};
 /**
  * @callback VoteOnApiInvocation
  * @param {string} apiMethodName
- * @param {unknown[]} methodArgs
+ * @param {Passable[]} methodArgs
  * @param {Installation} voteCounterInstallation
  * @param {import('@agoric/time').Timestamp} deadline
  * @returns {Promise<ContractGovernanceVoteResult>}
