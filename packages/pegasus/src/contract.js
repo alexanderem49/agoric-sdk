@@ -7,6 +7,10 @@ import '@agoric/zoe/exported.js';
 import '../exported.js';
 
 /**
+ * @import {Remote} from '@agoric/vow';
+ */
+
+/**
  * @type {ContractStartFn<import('./pegasus.js').Pegasus, never, {}, {
  *   board: ERef<BoardDepositFacet>,
  *   namesByAddress: ERef<import('@agoric/vats').NameHub>
