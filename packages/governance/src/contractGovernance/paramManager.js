@@ -226,7 +226,6 @@ const makeParamManagerBuilder = (publisherKit, zoe) => {
     }
     const { instance, installation } = await E(zoe).getInvitationDetails(i);
 
-    // @ts-expect-error typedefs say they're guaranteed truthy but just to be safe
     assert(instance && installation, 'must be an invitation');
   };
 
