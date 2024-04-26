@@ -27,20 +27,20 @@ since="$1"
 # Then send that todo list through a transformation pipeline.
 fake_editor='cat </dev/null "$@"; truncate -s0 "$@"'
 GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
-  git rebase -i --rebase-merges "$since" 2>/dev/null \
-| {
-  # Remove any final block of instruction comments (by appending
-  # blanks/comments to hold space and flushing that before other lines,
-  # minus the line feed before the first appended content).
-  sed -nE '/^$|^#/ { H; d; }; H; s/.*//; x; s/^[[:cntrl:]]//; p;'
-} \
-| {
-  # TODO: When `gh` CLI is available, use it to look up the PR for each
-  # `# Branch $branchName` lines and insert a reference like
-  cat
-} \
-| {
-  awk '
+  git rebase -i --rebase-merges "$since" 2> /dev/null \
+  | {
+    # Remove any final block of instruction comments (by appending
+    # blanks/comments to hold space and flushing that before other lines,
+    # minus the line feed before the first appended content).
+    sed -nE '/^$|^#/ { H; d; }; H; s/.*//; x; s/^[[:cntrl:]]//; p;'
+  } \
+  | {
+    # TODO: When `gh` CLI is available, use it to look up the PR for each
+    # `# Branch $branchName` lines and insert a reference like
+    cat
+  } \
+  | {
+    awk '
     # Restructure branch-specific blocks:
     # * Move an isolated initial `label` into the first block (and
     #   remove a following no-op `reset`).
@@ -80,11 +80,11 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
       printf "%s%s%s", blockHeader, firstBlockPrefix, cmdBuf;
     }
   '
-} \
-| {
-  # Rename each label that receives `merge -C` in a block to
-  # "base-$branchName".
-  awk '
+  } \
+  | {
+    # Rename each label that receives `merge -C` in a block to
+    # "base-$branchName".
+    awk '
     function addLabel(label) {
       if (++labels[label] == 1) return;
       print "duplicate label: " label > "/dev/stderr";
@@ -127,4 +127,4 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
       printf "%s", buf;
     }
   '
-}
+  }
