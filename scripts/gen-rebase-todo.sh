@@ -24,10 +24,15 @@ since="$1"
 # Get an an initial todo list from `git rebase -i` by using a fake
 # editor that echoes the file to standard output and then trucates it to
 # ensure that no rebase actually happens.
-# Then send that todo list through a transformation pipeline.
-fake_editor='cat </dev/null "$@"; truncate -s0 "$@"'
-GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
-  git rebase -i --rebase-merges --no-autosquash "$since" 2> /dev/null \
+# Filter the resulting standard error to remove expected "hint" and
+# "nothing to do" lines, and send the todo list through a transformation
+# pipeline.
+{
+  fake_editor='cat </dev/null "$@"; truncate -s0 "$@"'
+  GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
+    git rebase -i --rebase-merges --no-autosquash "$since" 2>&1 1>&3 \
+    | sed -E '/^hint:|^error: nothing to do$/d'
+} 3>&1 1>&2 \
   | {
     # Remove any final block of instruction comments (by appending
     # blanks/comments to hold space and flushing that before other lines,
@@ -45,7 +50,12 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
     #   remove a following no-op `reset`).
     # * When a block starts with `reset` + `merge`, move them into
     #   the previous block.
+    # * Add blank lines at the beginning and end
+    #   (for later block detection).
     awk '
+      BEGIN {
+        printf "\n";
+      }
       NR == 1 && match($0, /^label /) {
         firstBlockPrefix = $0 "\n";
         label = substr($0, RLENGTH + 1, length($0) - RLENGTH);
@@ -76,7 +86,7 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
         cmdBuf = "";
       }
       END {
-        printf "%s%s%s", blockHeader, firstBlockPrefix, cmdBuf;
+        printf "%s%s%s\n", blockHeader, firstBlockPrefix, cmdBuf;
       }
     '
   } \
@@ -147,6 +157,19 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
           }
         }
         printf "%s", buf;
+      }
+    '
+  } \
+  | {
+    # Remove leading and trailing blank lines.
+    awk '
+      $0 != "" {
+        active = 1;
+        for (; blanks > 0; blanks--) print "";
+        print;
+      }
+      $0 == "" && active {
+        blanks++;
       }
     '
   }
