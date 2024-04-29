@@ -109,16 +109,39 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
       END {
         # For "last-wins" semantics, apply renames in reverse order.
         for (i = renameCount; split(renames[i], pair, SUBSEP); i--) {
-          j = split("label reset", rebaseCmds, " ");
+          len1 = length(pair[1]);
+          j = split("label reset merge", rebaseCmds, " ");
           for (; cmd = rebaseCmds[j]; j--) {
             newBuf = "";
-            seekLine = sprintf("\n%s %s", cmd, pair[1]);
+            # "reset" and "merge" are followed by a label,
+            # but "merge" usually has an intervening "-C/-c" and commit id.
+            seekLine = sprintf("\n%s ", cmd);
+            if (cmd != "merge") seekLine = seekLine pair[1];
             while (k = index(buf, seekLine)) {
+              # Consume everything before the match.
+              newBuf = newBuf substr(buf, 1, k - 1);
+              buf = substr(buf, k, length(buf) - (k - 1));
+
+              # Expand the match as needed.
               len = length(seekLine);
-              r = sprintf("\n%s %s", cmd, pair[2]);
-              if (!match(substr(buf, k + len, 1), /[ \n]/)) r = seekLine;
-              newBuf = newBuf substr(buf, 1, k - 1) r;
-              buf = substr(buf, k + len, length(buf) - (k - 1) - len);
+              if (cmd == "merge") {
+                match(buf, /^\nmerge( -[Cc] [^ \n]*)? [^ \n]*/);
+                if (RLENGTH) len = RLENGTH;
+              }
+
+              # Define the replacement (or lack thereof if the match
+              # does not actually reference the renamed label).
+              r = substr(buf, 1, len);
+              if (len > len1 \
+                && substr(buf, len - len1, len1 + 1) == " " pair[1] \
+                && match(substr(buf, len + 1, 1), /[ \n]/)) {
+
+                r = substr(buf, 1, len - len1) pair[2];
+              }
+
+              # Apply the replacement and consume the match.
+              newBuf = newBuf r;
+              buf = substr(buf, len + 1, length(buf) - len);
             }
             buf = newBuf buf;
           }
