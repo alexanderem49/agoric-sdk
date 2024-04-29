@@ -40,11 +40,6 @@ since="$1"
     sed -nE '/^$|^#/ { H; d; }; H; s/.*//; x; s/^[[:cntrl:]]//; p;'
   } \
   | {
-    # TODO: When `gh` CLI is available, use it to look up the PR for each
-    # `# Branch $branchName` lines and insert a reference like
-    cat
-  } \
-  | {
     # Restructure branch-specific blocks:
     # * Move an isolated initial `label` into the first block (and
     #   remove a following no-op `reset`).
