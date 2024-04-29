@@ -43,7 +43,7 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
     # Restructure branch-specific blocks:
     # * Move an isolated initial `label` into the first block (and
     #   remove a following no-op `reset`).
-    # * When a block starts with `reset` + `merge -C`, move them into
+    # * When a block starts with `reset` + `merge`, move them into
     #   the previous block.
     awk '
       NR == 1 && match($0, /^label /) {
@@ -63,7 +63,7 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
         if (cmdBuf == "" && match($0, /^reset /)) {
           cmdBuf = $0 "\n";
           next;
-        } else if (cmdBuf != "" && match($0, /^merge -C/)) {
+        } else if (cmdBuf != "" && match($0, /^merge /)) {
           printf "%s%s", cmdBuf, $0 "\n";
           cmdBuf = "";
           next;
@@ -81,7 +81,7 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
     '
   } \
   | {
-    # Rename each label that receives `merge -C` in a block to
+    # Rename each label that receives `merge` in a block to
     # "base-$branchName".
     awk '
       function addLabel(label) {
@@ -92,7 +92,7 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
       match($0, /^$|^# .*[Bb]ranch /) {
         branch = substr($0, RLENGTH + 1, length($0) - RLENGTH);
       }
-      branch != "" && match($0, /^merge -C /) && match(prev, /^reset /) {
+      branch != "" && match($0, /^merge /) && match(prev, /^reset /) {
         onto = substr(prev, RLENGTH + 1, length($0) - RLENGTH);
         sub(/[[:space:]].*/, "", onto);
         newOnto = "base-" branch;
