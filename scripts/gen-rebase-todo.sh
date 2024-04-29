@@ -27,7 +27,7 @@ since="$1"
 # Then send that todo list through a transformation pipeline.
 fake_editor='cat </dev/null "$@"; truncate -s0 "$@"'
 GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
-  git rebase -i --rebase-merges "$since" 2> /dev/null \
+  git rebase -i --rebase-merges --no-autosquash "$since" 2> /dev/null \
   | {
     # Remove any final block of instruction comments (by appending
     # blanks/comments to hold space and flushing that before other lines,
