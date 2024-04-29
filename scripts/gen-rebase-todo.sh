@@ -40,91 +40,90 @@ GIT_SEQUENCE_EDITOR="sh -c '$fake_editor' -" \
     cat
   } \
   | {
-    awk '
     # Restructure branch-specific blocks:
     # * Move an isolated initial `label` into the first block (and
     #   remove a following no-op `reset`).
     # * When a block starts with `reset` + `merge -C`, move them into
     #   the previous block.
-
-    NR == 1 && match($0, /^label /) {
-      firstBlockPrefix = $0 "\n";
-      label = substr($0, RLENGTH + 1, length($0) - RLENGTH);
-      noopReset = "reset " label;
-      next;
-    }
-    firstBlockPrefix != "" && $0 == noopReset {
-      next;
-    }
-    /^$|^# .*[Bb]ranch .*/ {
-      blockHeader = blockHeader $0 "\n";
-      next;
-    }
-    blockHeader != "" {
-      if (cmdBuf == "" && match($0, /^reset /)) {
-        cmdBuf = $0 "\n";
-        next;
-      } else if (cmdBuf != "" && match($0, /^merge -C/)) {
-        printf "%s%s", cmdBuf, $0 "\n";
-        cmdBuf = "";
+    awk '
+      NR == 1 && match($0, /^label /) {
+        firstBlockPrefix = $0 "\n";
+        label = substr($0, RLENGTH + 1, length($0) - RLENGTH);
+        noopReset = "reset " label;
         next;
       }
-    }
-    {
-      printf "%s%s%s%s", blockHeader, firstBlockPrefix, cmdBuf, $0 "\n"
-      blockHeader = "";
-      firstBlockPrefix = "";
-      cmdBuf = "";
-    }
-    END {
-      printf "%s%s%s", blockHeader, firstBlockPrefix, cmdBuf;
-    }
-  '
+      firstBlockPrefix != "" && $0 == noopReset {
+        next;
+      }
+      /^$|^# .*[Bb]ranch .*/ {
+        blockHeader = blockHeader $0 "\n";
+        next;
+      }
+      blockHeader != "" {
+        if (cmdBuf == "" && match($0, /^reset /)) {
+          cmdBuf = $0 "\n";
+          next;
+        } else if (cmdBuf != "" && match($0, /^merge -C/)) {
+          printf "%s%s", cmdBuf, $0 "\n";
+          cmdBuf = "";
+          next;
+        }
+      }
+      {
+        printf "%s%s%s%s", blockHeader, firstBlockPrefix, cmdBuf, $0 "\n"
+        blockHeader = "";
+        firstBlockPrefix = "";
+        cmdBuf = "";
+      }
+      END {
+        printf "%s%s%s", blockHeader, firstBlockPrefix, cmdBuf;
+      }
+    '
   } \
   | {
     # Rename each label that receives `merge -C` in a block to
     # "base-$branchName".
     awk '
-    function addLabel(label) {
-      if (++labels[label] == 1) return;
-      print "duplicate label: " label > "/dev/stderr";
-      exit 1;
-    }
-    match($0, /^$|^# .*[Bb]ranch /) {
-      branch = substr($0, RLENGTH + 1, length($0) - RLENGTH);
-    }
-    branch != "" && match($0, /^merge -C /) && match(prev, /^reset /) {
-      onto = substr(prev, RLENGTH + 1, length($0) - RLENGTH);
-      sub(/[[:space:]].*/, "", onto);
-      newOnto = "base-" branch;
-      addLabel(newOnto);
-      renames[++renameCount] = onto SUBSEP newOnto;
-    }
-    /^label / {
-      addLabel(substr($0, RLENGTH + 1, length($0) - RLENGTH));
-    }
-    {
-      buf = buf $0 "\n";
-      prev = $0;
-    }
-    END {
-      # For "last-wins" semantics, apply renames in reverse order.
-      for (i = renameCount; split(renames[i], pair, SUBSEP); i--) {
-        j = split("label reset", rebaseCmds, " ");
-        for (; cmd = rebaseCmds[j]; j--) {
-          newBuf = "";
-          seekLine = sprintf("\n%s %s", cmd, pair[1]);
-          while (k = index(buf, seekLine)) {
-            len = length(seekLine);
-            r = sprintf("\n%s %s", cmd, pair[2]);
-            if (!match(substr(buf, k + len, 1), /[ \n]/)) r = seekLine;
-            newBuf = newBuf substr(buf, 1, k - 1) r;
-            buf = substr(buf, k + len, length(buf) - (k - 1) - len);
-          }
-          buf = newBuf buf;
-        }
+      function addLabel(label) {
+        if (++labels[label] == 1) return;
+        print "duplicate label: " label > "/dev/stderr";
+        exit 1;
       }
-      printf "%s", buf;
-    }
-  '
+      match($0, /^$|^# .*[Bb]ranch /) {
+        branch = substr($0, RLENGTH + 1, length($0) - RLENGTH);
+      }
+      branch != "" && match($0, /^merge -C /) && match(prev, /^reset /) {
+        onto = substr(prev, RLENGTH + 1, length($0) - RLENGTH);
+        sub(/[[:space:]].*/, "", onto);
+        newOnto = "base-" branch;
+        addLabel(newOnto);
+        renames[++renameCount] = onto SUBSEP newOnto;
+      }
+      /^label / {
+        addLabel(substr($0, RLENGTH + 1, length($0) - RLENGTH));
+      }
+      {
+        buf = buf $0 "\n";
+        prev = $0;
+      }
+      END {
+        # For "last-wins" semantics, apply renames in reverse order.
+        for (i = renameCount; split(renames[i], pair, SUBSEP); i--) {
+          j = split("label reset", rebaseCmds, " ");
+          for (; cmd = rebaseCmds[j]; j--) {
+            newBuf = "";
+            seekLine = sprintf("\n%s %s", cmd, pair[1]);
+            while (k = index(buf, seekLine)) {
+              len = length(seekLine);
+              r = sprintf("\n%s %s", cmd, pair[2]);
+              if (!match(substr(buf, k + len, 1), /[ \n]/)) r = seekLine;
+              newBuf = newBuf substr(buf, 1, k - 1) r;
+              buf = substr(buf, k + len, length(buf) - (k - 1) - len);
+            }
+            buf = newBuf buf;
+          }
+        }
+        printf "%s", buf;
+      }
+    '
   }
