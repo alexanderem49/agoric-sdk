@@ -4,7 +4,7 @@ import { isPassable } from '@endo/pass-style';
 import { M, matches } from '@endo/patterns';
 
 /**
- * @import {RemotableObject} from '@endo/pass-style'
+ * @import {PassableCap} from '@endo/pass-style'
  * @import {Vow} from './types.js'
  */
 
@@ -50,17 +50,23 @@ export const getVowPayload = specimen => {
 harden(getVowPayload);
 
 /**
- * For when you have a remotable or a vow and you need a representative
- * remotable,
- * typically to serve as a key in a Map, WeakMap, Store, or WeakStore.
+ * For when you have a Vow or a `PassableCap` (`RemotableObject` or
+ * passable `Promise`) and you need `PassableCap`,
+ * typically to serve as a key in a `Map`, `WeakMap`, `Store`, or `WeakStore`.
  *
  * Relies on, and encapsulates, the current "V0" representation of a vow
  * as containing a unique remotable shortener.
  *
- * @param {RemotableObject | Vow} k
- * @returns {RemotableObject}
+ * Note: if `k` is not a `Vow`, `toPassableCap` does no enforcement that `k`
+ * is already a `PassableCap`. Rather, it just acts as an identity function
+ * returning `k` without further checking. The types only describe the
+ * intended use. (If warranted, we may later add such enforcement, so please
+ * do not rely on either the presence or absence of such enforcement.)
+ *
+ * @param {PassableCap | Vow} k
+ * @returns {PassableCap}
  */
-export const vowishKey = k => {
+export const toPassableCap = k => {
   const payload = getVowPayload(k);
   if (payload === undefined) {
     return k;
@@ -69,4 +75,4 @@ export const vowishKey = k => {
   // vowMap.set(vowV0, h);
   return vowV0;
 };
-harden(vowishKey);
+harden(toPassableCap);
