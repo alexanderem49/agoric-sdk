@@ -340,7 +340,7 @@ export const prepareVaultManagerKit = (
         getCollateralQuote: M.call().returns(PriceQuoteShape),
         getPublicFacet: M.call().returns(M.remotable('publicFacet')),
         lockOraclePrices: M.call().returns(PriceQuoteShape),
-        liquidateVaults: M.callWhen(AuctionPFShape).returns(M.undefined()),
+        liquidateVaults: M.call(M.eref(AuctionPFShape)).returns(M.promise()),
       }),
     },
     initState,
