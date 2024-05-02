@@ -7,6 +7,7 @@ import { AmountMath } from '@agoric/ertp';
 import type { start as stakeBldStart } from '@agoric/orchestration/src/examples/stakeBld.contract.js';
 import type { Instance } from '@agoric/zoe/src/zoeService/utils.js';
 import { M, matches } from '@endo/patterns';
+import type { CosmosValidatorAddress } from '@agoric/orchestration';
 import { makeWalletFactoryContext } from './walletFactory.ts';
 
 type DefaultTestContext = Awaited<ReturnType<typeof makeWalletFactoryContext>>;
@@ -124,8 +125,24 @@ test.serial('stakeAtom - repl-style', async t => {
   const atomBrand = await EV(agoricNames).lookup('brand', 'ATOM');
   const atomAmount = AmountMath.make(atomBrand, 10n);
 
-  const res = await EV(account).delegate('cosmosvaloper1test', atomAmount);
+  const validatorAddress: CosmosValidatorAddress = {
+    address: 'cosmosvaloper1test',
+    chainId: 'gaiatest',
+    addressEncoding: 'bech32',
+  };
+  const res = await EV(account).delegate(validatorAddress, atomAmount);
   t.is(res, 'Success', 'delegate returns Success');
+
+  const queryRes = await EV(account).queryBalance();
+  t.deepEqual(queryRes, { amount: '0', denom: 'uatom' });
+
+  const queryUnknownDenom =
+    await EV(account).queryBalance('some-invalid-denom');
+  t.deepEqual(
+    queryUnknownDenom,
+    { amount: '0', denom: 'some-invalid-denom' },
+    'queryBalance for unknown denom returns amount: 0',
+  );
 });
 
 test.serial('stakeAtom - smart wallet', async t => {
@@ -155,6 +172,11 @@ test.serial('stakeAtom - smart wallet', async t => {
 
   const { ATOM } = agoricNamesRemotes.brand;
   ATOM || Fail`ATOM missing from agoricNames`;
+  const validatorAddress: CosmosValidatorAddress = {
+    address: 'cosmosvaloper1test',
+    chainId: 'gaiatest',
+    addressEncoding: 'bech32',
+  };
 
   await t.notThrowsAsync(
     wd.executeOffer({
@@ -163,7 +185,7 @@ test.serial('stakeAtom - smart wallet', async t => {
         source: 'continuing',
         previousOffer: 'request-account',
         invitationMakerName: 'Delegate',
-        invitationArgs: ['cosmosvaloper1test', { brand: ATOM, value: 10n }],
+        invitationArgs: [validatorAddress, { brand: ATOM, value: 10n }],
       },
       proposal: {},
     }),
@@ -172,6 +194,12 @@ test.serial('stakeAtom - smart wallet', async t => {
     status: { id: 'request-delegate-success', numWantsSatisfied: 1 },
   });
 
+  const validatorAddressFail: CosmosValidatorAddress = {
+    address: 'cosmosvaloper1fail',
+    chainId: 'gaiatest',
+    addressEncoding: 'bech32',
+  };
+
   await t.throwsAsync(
     wd.executeOffer({
       id: 'request-delegate-fail',
@@ -179,7 +207,7 @@ test.serial('stakeAtom - smart wallet', async t => {
         source: 'continuing',
         previousOffer: 'request-account',
         invitationMakerName: 'Delegate',
-        invitationArgs: ['cosmosvaloper1fail', { brand: ATOM, value: 10n }],
+        invitationArgs: [validatorAddressFail, { brand: ATOM, value: 10n }],
       },
       proposal: {},
     }),
