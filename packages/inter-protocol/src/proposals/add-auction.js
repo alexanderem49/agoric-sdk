@@ -121,12 +121,16 @@ export const addAuction = async ({
   const { Bid: _istIssuer, ...auctionIssuers } = allIssuers;
   await Promise.all(
     Object.keys(auctionIssuers).map(kwd =>
-      E(governedCreatorFacet).addBrand(auctionIssuers[kwd], kwd),
+      E(governedCreatorFacet).addBrand(
+        /** @type {Issuer<'nat'>} */ (auctionIssuers[kwd]),
+        kwd,
+      ),
     ),
   );
 
   // don't overwrite auctioneerKit yet
   newAuctioneerKit.resolve(
+    // @ts-expect-error XXX governance types
     harden({
       label: 'auctioneer',
       creatorFacet: governedCreatorFacet,
