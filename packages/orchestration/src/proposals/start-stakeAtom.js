@@ -47,8 +47,6 @@ export const startStakeAtom = async (
     controllerConnectionId,
   );
 
-  trace('@@@ICQCONN', icqConnection);
-
   /** @type {StartUpgradableOpts<StakeAtomSF>} */
   const startOpts = {
     label: 'stakeAtom',

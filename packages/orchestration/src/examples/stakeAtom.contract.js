@@ -41,7 +41,6 @@ export const start = async (zcf, privateArgs, baggage) => {
     zcf.getTerms();
   const { orchestration, marshaller, storageNode, icqConnection } = privateArgs;
 
-  trace('@@@ICQCONN', icqConnection);
   const zone = makeDurableZone(baggage);
 
   const { makeRecorderKit } = prepareRecorderKitMakers(baggage, marshaller);
