@@ -146,10 +146,10 @@ export const prepareStakingAccountKit = (baggage, makeRecorderKit, zcf) => {
         },
         /**
          * _Assumes users has already sent funds to their ICA, until #9193
-         * @param {CosmosValidatorAddress} cosmosValidatorAddress
+         * @param {CosmosValidatorAddress} validator
          * @param {Amount<'nat'>} ertpAmount
          */
-        async delegate(cosmosValidatorAddress, ertpAmount) {
+        async delegate(validator, ertpAmount) {
           // FIXME get values from proposal or args #9211
           // FIXME brand handling and amount scaling
           const amount = {
@@ -165,7 +165,7 @@ export const prepareStakingAccountKit = (baggage, makeRecorderKit, zcf) => {
               Any.toJSON(
                 MsgDelegate.toProtoMsg({
                   delegatorAddress,
-                  validatorAddress: cosmosValidatorAddress.address,
+                  validatorAddress: validator.address,
                   amount,
                 }),
               )
@@ -212,13 +212,12 @@ export const prepareStakingAccountKit = (baggage, makeRecorderKit, zcf) => {
           });
         },
         /**
-         *
-         * @param {CosmosValidatorAddress} validatorAddress
+         * @param {CosmosValidatorAddress} validator
          * @param {Amount<'nat'>} ertpAmount
          */
-        async delegate(validatorAddress, ertpAmount) {
-          trace('delegate', validatorAddress, ertpAmount);
-          return this.facets.helper.delegate(validatorAddress, ertpAmount);
+        async delegate(validator, ertpAmount) {
+          trace('delegate', validator, ertpAmount);
+          return this.facets.helper.delegate(validator, ertpAmount);
         },
         getAddress() {
           return this.state.chainAddress;
@@ -234,15 +233,15 @@ export const prepareStakingAccountKit = (baggage, makeRecorderKit, zcf) => {
         },
         /**
          *
-         * @param {CosmosValidatorAddress} validatorAddress
+         * @param {CosmosValidatorAddress} validator
          * @param {Amount<'nat'>} ertpAmount
          */
-        makeDelegateInvitation(validatorAddress, ertpAmount) {
-          trace('makeDelegateInvitation', validatorAddress, ertpAmount);
+        makeDelegateInvitation(validator, ertpAmount) {
+          trace('makeDelegateInvitation', validator, ertpAmount);
 
           return zcf.makeInvitation(async seat => {
             seat.exit();
-            return this.facets.helper.delegate(validatorAddress, ertpAmount);
+            return this.facets.helper.delegate(validator, ertpAmount);
           }, 'Delegate');
         },
         makeCloseAccountInvitation() {
