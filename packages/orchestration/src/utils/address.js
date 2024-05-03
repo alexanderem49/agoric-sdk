@@ -44,6 +44,7 @@ harden(makeICAChannelAddress);
 /**
  * @param {IBCConnectionID}  controllerConnectionId
  * @param {{ version?: string }} [opts]
+ * @returns {RemoteIbcAddress}
  */
 export const makeICQChannelAddress = (
   controllerConnectionId,
