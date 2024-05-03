@@ -66,8 +66,8 @@ export const OrchestrationI = M.interface('Orchestration', {
 
 /**
  * @param {Zone} zone
- * @param {ReturnType<prepareChainAccountKit>} makeChainAccountKit
- * @param {ReturnType<prepareICQConnectionKit>} makeICQConnectionKit
+ * @param {ReturnType<typeof prepareChainAccountKit>} makeChainAccountKit
+ * @param {ReturnType<typeof prepareICQConnectionKit>} makeICQConnectionKit
  */
 const prepareOrchestrationKit = (
   zone,

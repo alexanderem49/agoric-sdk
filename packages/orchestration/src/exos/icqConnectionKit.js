@@ -30,6 +30,15 @@ export const ICQConnectionI = M.interface('ICQConnection', {
   query: M.call(M.arrayOf(ICQMsgShape)).returns(M.promise()),
 });
 
+/**
+ * @typedef {{
+ *   port: Port;
+ *   connection: Remote<Connection> | undefined;
+ *   localAddress: LocalIbcAddress | undefined;
+ *   remoteAddress: RemoteIbcAddress | undefined;
+ * }} State
+ */
+
 /** @param {Zone} zone */
 export const prepareICQConnectionKit = zone =>
   zone.exoClassKit(
@@ -39,14 +48,7 @@ export const prepareICQConnectionKit = zone =>
      * @param {Port} port
      */
     port =>
-      /**
-       * @type {{
-       *   port: Port;
-       *   connection: Remote<Connection> | undefined;
-       *   localAddress: LocalIbcAddress | undefined;
-       *   remoteAddress: RemoteIbcAddress | undefined;
-       * }}
-       */ (
+      /** @type {State} */ (
         harden({
           port,
           connection: undefined,

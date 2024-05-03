@@ -33,22 +33,22 @@ export const protoMsgMocks = {
   },
   // QueryBalanceRequest (/cosmos.bank.v1beta1.Query/Balance) of uatom for cosmos1test
   queryBalance: {
-    msg: 'eyJ0eXBlIjoxLCJkYXRhIjoiQ2pvS0ZBb0xZMjl6Ylc5ek1YUmxjM1FTQlhWaGRHOXRFaUl2WTI5emJXOXpMbUpoYm1zdWRqRmlaWFJoTVM1UmRXVnllUzlDWVd4aGJtTmwiLCJtZW1vIjoiIn0=',
+    msg: 'eyJkYXRhIjoiQ2pvS0ZBb0xZMjl6Ylc5ek1YUmxjM1FTQlhWaGRHOXRFaUl2WTI5emJXOXpMbUpoYm1zdWRqRmlaWFJoTVM1UmRXVnllUzlDWVd4aGJtTmwiLCJtZW1vIjoiIn0=',
     ack: responses.queryBalance,
   },
   // QueryBalanceRequest of uatom for cosmos1test, repeated twice
   queryBalanceMulti: {
-    msg: 'eyJ0eXBlIjoxLCJkYXRhIjoiQ2pvS0ZBb0xZMjl6Ylc5ek1YUmxjM1FTQlhWaGRHOXRFaUl2WTI5emJXOXpMbUpoYm1zdWRqRmlaWFJoTVM1UmRXVnllUzlDWVd4aGJtTmxDam9LRkFvTFkyOXpiVzl6TVhSbGMzUVNCWFZoZEc5dEVpSXZZMjl6Ylc5ekxtSmhibXN1ZGpGaVpYUmhNUzVSZFdWeWVTOUNZV3hoYm1ObCIsIm1lbW8iOiIifQ==',
+    msg: 'eyJkYXRhIjoiQ2pvS0ZBb0xZMjl6Ylc5ek1YUmxjM1FTQlhWaGRHOXRFaUl2WTI5emJXOXpMbUpoYm1zdWRqRmlaWFJoTVM1UmRXVnllUzlDWVd4aGJtTmxDam9LRkFvTFkyOXpiVzl6TVhSbGMzUVNCWFZoZEc5dEVpSXZZMjl6Ylc5ekxtSmhibXN1ZGpGaVpYUmhNUzVSZFdWeWVTOUNZV3hoYm1ObCIsIm1lbW8iOiIifQ==',
     ack: responses.queryBalanceMulti,
   },
   // QueryBalanceRequest of 'some-invalid-denom' for cosmos1test
   queryBalanceUnknownDenom: {
-    msg: 'eyJ0eXBlIjoxLCJkYXRhIjoiQ2tjS0lRb0xZMjl6Ylc5ek1YUmxjM1FTRW5OdmJXVXRhVzUyWVd4cFpDMWtaVzV2YlJJaUwyTnZjMjF2Y3k1aVlXNXJMbll4WW1WMFlURXVVWFZsY25rdlFtRnNZVzVqWlE9PSIsIm1lbW8iOiIifQ==',
+    msg: 'eyJkYXRhIjoiQ2tjS0lRb0xZMjl6Ylc5ek1YUmxjM1FTRW5OdmJXVXRhVzUyWVd4cFpDMWtaVzV2YlJJaUwyTnZjMjF2Y3k1aVlXNXJMbll4WW1WMFlURXVVWFZsY25rdlFtRnNZVzVqWlE9PSIsIm1lbW8iOiIifQ==',
     ack: responses.queryBalanceUnknownDenom,
   },
   // Query for /cosmos.bank.v1beta1.QueryBalanceRequest
   queryUnknownPath: {
-    msg: 'eyJ0eXBlIjoxLCJkYXRhIjoiQ2tBS0ZBb0xZMjl6Ylc5ek1YUmxjM1FTQlhWaGRHOXRFaWd2WTI5emJXOXpMbUpoYm1zdWRqRmlaWFJoTVM1UmRXVnllVUpoYkdGdVkyVlNaWEYxWlhOMCIsIm1lbW8iOiIifQ==',
+    msg: 'eyJkYXRhIjoiQ2tBS0ZBb0xZMjl6Ylc5ek1YUmxjM1FTQlhWaGRHOXRFaWd2WTI5emJXOXpMbUpoYm1zdWRqRmlaWFJoTVM1UmRXVnllVUpoYkdGdVkyVlNaWEYxWlhOMCIsIm1lbW8iOiIifQ==',
     ack: responses.error4,
   },
   // MsgDelegate 10uatom from cosmos1test to cosmosvaloper1test with memo: 'TESTING' and timeoutHeight: 1_000_000_000n

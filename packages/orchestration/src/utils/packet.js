@@ -7,10 +7,13 @@ import {
   CosmosQuery,
   CosmosResponse,
 } from '@agoric/cosmic-proto/icq/v1/packet.js';
+import { Type as PacketType } from '@agoric/cosmic-proto/ibc/applications/interchain_accounts/v1/packet.js';
 
 /**
- * @import { AnyJson, RequestQueryJson, Base64Any } from '@agoric/cosmic-proto';
- * @import { ResponseQuery } from '@agoric/cosmic-proto/tendermint/abci/types.js';
+ * @import {AnyJson, RequestQueryJson, Base64Any} from '@agoric/cosmic-proto';
+ * @import {ResponseQuery} from '@agoric/cosmic-proto/tendermint/abci/types.js';
+ * @import {InterchainAccountPacketData} from '@agoric/cosmic-proto/ibc/applications/interchain_accounts/v1/packet.js';
+ * @import {InterchainQueryPacketData} from '@agoric/cosmic-proto/icq/v1/packet.js';
  */
 
 /**
@@ -19,7 +22,7 @@ import {
  * Skips checks for malformed messages in favor of interface guards.
  * @param {AnyJson[]} msgs
  * @param {Partial<Omit<TxBody, 'messages'>>} [opts]
- * @returns {string} - IBC TX packet
+ * @returns {string} stringified InterchainAccountPacketData
  * @throws {Error} if malformed messages are provided
  */
 export function makeTxPacket(msgs, opts) {
@@ -31,11 +34,13 @@ export function makeTxPacket(msgs, opts) {
     }),
   ).finish();
 
-  return JSON.stringify({
-    type: 1,
-    data: encodeBase64(bytes),
-    memo: '',
-  });
+  return JSON.stringify(
+    /** @type {Base64Any<InterchainAccountPacketData>} */ ({
+      type: PacketType.TYPE_EXECUTE_TX,
+      data: encodeBase64(bytes),
+      memo: '',
+    }),
+  );
 }
 harden(makeTxPacket);
 
@@ -44,7 +49,7 @@ harden(makeTxPacket);
  * to be base64 encoded bytes.
  * Skips checks for malformed messages in favor of interface guards.
  * @param {RequestQueryJson[]} msgs
- * @returns {string} - IBC Query packet
+ * @returns {string} stringified InterchainQueryPacketData
  * @throws {Error} if malformed messages are provided
  */
 export function makeQueryPacket(msgs) {
@@ -54,11 +59,12 @@ export function makeQueryPacket(msgs) {
     }),
   ).finish();
 
-  return JSON.stringify({
-    type: 1,
-    data: encodeBase64(bytes),
-    memo: '',
-  });
+  return JSON.stringify(
+    /** @type {Base64Any<InterchainQueryPacketData>} */ ({
+      data: encodeBase64(bytes),
+      memo: '',
+    }),
+  );
 }
 harden(makeQueryPacket);
 

@@ -48,7 +48,9 @@ export const BalanceShape = { amount: M.string(), denom: M.string() };
 
 export const ChainAccountHolderI = M.interface('ChainAccountHolder', {
   getPublicTopics: M.call().returns(TopicsRecordShape),
-  makeDelegateInvitation: M.call(M.string(), AmountShape).returns(M.promise()),
+  makeDelegateInvitation: M.call(ChainAddressShape, AmountShape).returns(
+    M.promise(),
+  ),
   makeCloseAccountInvitation: M.call().returns(M.promise()),
   makeTransferAccountInvitation: M.call().returns(M.promise()),
   delegate: M.callWhen(ChainAddressShape, AmountShape).returns(M.string()),

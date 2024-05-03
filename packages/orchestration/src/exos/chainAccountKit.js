@@ -49,6 +49,17 @@ export const ChainAccountI = M.interface('ChainAccount', {
   prepareTransfer: M.callWhen().returns(InvitationShape),
 });
 
+/**
+ * @typedef {{
+ *   port: Port;
+ *   connection: Remote<Connection> | undefined;
+ *   localAddress: LocalIbcAddress | undefined;
+ *   requestedRemoteAddress: string;
+ *   remoteAddress: RemoteIbcAddress | undefined;
+ *   chainAddress: ChainAddress | undefined;
+ * }} State
+ */
+
 /** @param {Zone} zone */
 export const prepareChainAccountKit = zone =>
   zone.exoClassKit(
@@ -59,16 +70,7 @@ export const prepareChainAccountKit = zone =>
      * @param {string} requestedRemoteAddress
      */
     (port, requestedRemoteAddress) =>
-      /**
-       * @type {{
-       *   port: Port;
-       *   connection: Remote<Connection> | undefined;
-       *   localAddress: LocalIbcAddress | undefined;
-       *   requestedRemoteAddress: string;
-       *   remoteAddress: RemoteIbcAddress | undefined;
-       *   chainAddress: ChainAddress | undefined;
-       * }}
-       */ (
+      /** @type {State} */ (
         harden({
           port,
           connection: undefined,

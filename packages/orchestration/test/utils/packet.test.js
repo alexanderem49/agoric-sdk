@@ -111,7 +111,7 @@ test('makeQueryPacket', t => {
   );
   t.is(
     makeQueryPacket([mockQuery]),
-    '{"type":1,"data":"CjoKFAoLY29zbW9zMXRlc3QSBXVhdG9tEiIvY29zbW9zLmJhbmsudjFiZXRhMS5RdWVyeS9CYWxhbmNl","memo":""}',
+    '{"data":"CjoKFAoLY29zbW9zMXRlc3QSBXVhdG9tEiIvY29zbW9zLmJhbmsudjFiZXRhMS5RdWVyeS9CYWxhbmNl","memo":""}',
     'makes a query packet from messages',
   );
   const requiredFields = {
