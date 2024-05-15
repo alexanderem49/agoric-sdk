@@ -227,6 +227,7 @@ export const addAssetToVault = async (
       // Default to a safe value. Production will likely set this through governance.
       // Allow setting through bootstrap to simplify testing.
       interestRateValue = 1n,
+      liquidationMarginValue = 380n,
       interchainAssetOptions,
     },
   },
@@ -249,7 +250,7 @@ export const addAssetToVault = async (
     // Product deployments are also expected to have a low debtLimitValue at the outset,
     // limiting the impact of these defaults.
     liquidationPadding: makeRatio(25n, stable),
-    liquidationMargin: makeRatio(150n, stable),
+    liquidationMargin: makeRatio(liquidationMarginValue, stable),
     mintFee: makeRatio(50n, stable, 10_000n),
     liquidationPenalty: makeRatio(1n, stable),
   });
@@ -262,6 +263,7 @@ export const getManifestForAddAssetToVault = (
   {
     debtLimitValue,
     interestRateValue,
+    liquidationMarginValue,
     interchainAssetOptions,
     scaledPriceAuthorityRef,
   },
@@ -330,6 +332,7 @@ export const getManifestForAddAssetToVault = (
       debtLimitValue,
       interchainAssetOptions,
       interestRateValue,
+      liquidationMarginValue,
     },
   };
 };

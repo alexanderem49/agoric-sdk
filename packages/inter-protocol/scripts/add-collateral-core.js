@@ -11,6 +11,7 @@ export const defaultProposalBuilder = async (
   {
     debtLimitValue = undefined,
     interestRateValue = undefined,
+    liquidationMarginValue = undefined,
     interchainAssetOptions = /** @type {object} */ ({}),
   } = {},
   { env = process.env } = {},
@@ -39,6 +40,7 @@ export const defaultProposalBuilder = async (
       {
         debtLimitValue: debtLimitValue && BigInt(debtLimitValue),
         interestRateValue: interestRateValue && BigInt(interestRateValue),
+        liquidationMarginValue: liquidationMarginValue && BigInt(liquidationMarginValue),
         interchainAssetOptions: {
           denom,
           issuerBoardId,
